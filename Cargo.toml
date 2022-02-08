@@ -1,0 +1,20 @@
+[package]
+name = "git-issue"
+version = "0.0.1"
+authors = ["Bahtiar `kalkin-` Gadimov <bahtiar@gadimov.de>"]
+edition = "2021"
+
+[[bin]]
+name = "git-issue-new"
+path = "src/bin/git-issue-new.rs"
+
+[lib]
+name = "git_issue"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { version="^3.0.0", default-features=false, features=["std", "cargo", "derive"] }
+getset = "0.1.*"
+git-wrapper = "0.5.*"
+log = "^0.4"
+simple_logger = { version="^2.1.0", default-features=false, features=["stderr", "colors"] }
