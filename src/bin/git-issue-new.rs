@@ -9,6 +9,13 @@ use git_wrapper::Repository;
 struct Args {
     #[clap(short, name = "TAG", long = "tag", long_help = "Tags to assign")]
     tags: Option<Vec<String>>,
+    #[clap(
+        short,
+        name = "MILESTONE",
+        long = "milestone",
+        long_help = "Milestone to assign to"
+    )]
+    milestone: Option<String>,
     #[clap(short, long_help = "Issue summary")]
     summary: String,
 
@@ -71,9 +78,11 @@ fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue:
 
     log::info!("{:?} + {:?}: {:?}", id, path, tags);
     let description = args.summary.clone();
+    let milestone = args.milestone.clone();
     let issue = git_issue::Issue {
         id: id.clone(),
         description,
+        milestone,
         tags,
     };
     log::info!("Creating issue: {:?}", issue.id.short());

@@ -43,6 +43,7 @@ impl Id {
 pub struct Issue {
     pub id: Id,
     pub description: String,
+    pub milestone: Option<String>,
     pub tags: Vec<String>,
 }
 
@@ -184,12 +185,19 @@ pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Err
 pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), Error> {
     let dir_path = issue.id.path(repo);
     let description_path = dir_path.join("description");
+    let milestone_path = dir_path.join("milestone");
     let tags_path = dir_path.join("tags");
     let tags = format!("{}\n", &issue.tags.join("\n"));
 
     std::fs::create_dir_all(dir_path)
         .and_then(|_| std::fs::write(description_path, &issue.description))
         .and_then(|_| std::fs::write(tags_path, tags))
+        .and_then(|_| {
+            if let Some(milestone) = &issue.milestone {
+                return std::fs::write(milestone_path, milestone);
+            }
+            Ok(())
+        })
         .map_err(|e| Error {
             message: format!("{}", e),
             code: 4,
