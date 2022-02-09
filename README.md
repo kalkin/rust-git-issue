@@ -51,3 +51,36 @@ Current goal is to make it a drop in replacement.
   - [ ] `export` Export modified issues for the specified project.
   - [ ] `exportall` Export all open issues in the database (`-a` to include closed
     ones) to GitHub/GitLab. Useful for cloning whole repositories.
+
+## Milestones
+
+### 1 Core
+
+1. [ ] `cancel`
+1. [ ] `close`
+1. [ ] `comment`
+1. [ ] `init`
+1. [ ] `new`
+   1. [x] Command line usage
+   1. [ ] Opening editor.
+1. [ ] `list` - only show open or all (`-a`) issues
+1. [ ] `show`
+1. [ ] `tag`
+1. [ ] `validate`
+   1. [ ] Find issues with invalid ids
+
+### 2 Extended
+
+1. [ ] `milestone`
+1. [ ] `weight`
+1. [ ] `duedate`
+1. [ ] `timeestimate`
+1. [ ] `timespent`
+1. [ ] `assign`
+1. [ ] `attach`
+1. [ ] `watcher`
+1. [ ] `filter-apply`
+
+### 3 Remote
+
+Synchronisation with remote repositories.
