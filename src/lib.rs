@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use getset::Getters;
 use git_wrapper::Repository;
+use posix_errors::PosixError;
 
 #[derive(Getters)]
 pub struct Transaction {
@@ -9,14 +10,6 @@ pub struct Transaction {
     start_sha: String,
     #[getset(get = "pub")]
     stash_before: bool,
-}
-
-#[derive(Getters)]
-pub struct Error {
-    #[getset(get = "pub")]
-    message: String,
-    #[getset(get = "pub")]
-    code: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -50,11 +43,10 @@ pub struct Issue {
 /// # Errors
 ///
 /// Will fail when `HEAD` can not be resolved
-pub fn start_transaction(repo: &Repository) -> Result<Transaction, Error> {
-    let start_sha = repo.head().ok_or_else(|| Error {
-        message: "Failed to resolve HEAD".to_string(),
-        code: 2,
-    })?;
+pub fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
+    let start_sha = repo
+        .head()
+        .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
 
     let stash_before = !repo.is_clean();
     log::debug!("Stashing needed? {}", stash_before);
@@ -73,12 +65,12 @@ pub fn start_transaction(repo: &Repository) -> Result<Transaction, Error> {
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
     Ok(result)
 }
 
-fn reset_hard(repo: &Repository, sha: &str) -> Result<(), Error> {
+fn reset_hard(repo: &Repository, sha: &str) -> Result<(), PosixError> {
     log::debug!("Resetting to {}", sha);
     let mut cmd = repo.git();
     let out = cmd
@@ -89,12 +81,12 @@ fn reset_hard(repo: &Repository, sha: &str) -> Result<(), Error> {
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
     Ok(())
 }
 
-fn stash_pop(repo: &Repository) -> Result<(), Error> {
+fn stash_pop(repo: &Repository) -> Result<(), PosixError> {
     let mut cmd = repo.git();
     log::debug!("Popping stash");
     let out = cmd
@@ -105,7 +97,7 @@ fn stash_pop(repo: &Repository) -> Result<(), Error> {
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
     Ok(())
 }
@@ -113,7 +105,10 @@ fn stash_pop(repo: &Repository) -> Result<(), Error> {
 /// # Errors
 ///
 /// Throws an error when any of the git commands fail
-pub fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<(), Error> {
+pub fn rollback_transaction(
+    transaction: &Transaction,
+    repo: &Repository,
+) -> Result<(), PosixError> {
     reset_hard(repo, &transaction.start_sha)?;
     if transaction.stash_before {
         stash_pop(repo)?;
@@ -129,11 +124,10 @@ pub fn commit_transaction(
     transaction: &Transaction,
     repo: &Repository,
     message: &str,
-) -> Result<(), Error> {
-    let sha = repo.head().ok_or_else(|| Error {
-        message: "Failed to resolve HEAD".to_string(),
-        code: 2,
-    })?;
+) -> Result<(), PosixError> {
+    let sha = repo
+        .head()
+        .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
 
     reset_hard(repo, &transaction.start_sha)?;
     let mut cmd = repo.git();
@@ -145,7 +139,7 @@ pub fn commit_transaction(
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
 
     if transaction.stash_before {
@@ -157,7 +151,7 @@ pub fn commit_transaction(
 /// # Errors
 ///
 /// Throws an error when it fails to commit
-pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Error> {
+pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), PosixError> {
     let mut cmd = repo.git();
     let message = format!("{}\n\n{}", subject, message);
     let out = cmd
@@ -174,7 +168,7 @@ pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Err
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
     Ok(())
 }
@@ -182,7 +176,7 @@ pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Err
 /// # Errors
 ///
 /// Throws an error when it fails to create an issue
-pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), Error> {
+pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), PosixError> {
     let dir_path = issue.id.path(repo);
     let description_path = dir_path.join("description");
     let milestone_path = dir_path.join("milestone");
@@ -198,10 +192,7 @@ pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), Error> {
             }
             Ok(())
         })
-        .map_err(|e| Error {
-            message: format!("{}", e),
-            code: 4,
-        })?;
+        .map_err(|e| PosixError::new(4, format!("{}", e)))?;
     let mut cmd = repo.git();
     let out = cmd
         .args(&["add", &issue.id.path(repo).to_string_lossy()])
@@ -211,7 +202,7 @@ pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), Error> {
     if !out.status.success() {
         let message = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(Error { message, code });
+        return Err(PosixError::new(code, message));
     }
 
     Ok(())

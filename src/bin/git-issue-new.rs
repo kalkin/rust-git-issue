@@ -1,6 +1,7 @@
 use clap::{AppSettings, Parser};
 
 use git_wrapper::Repository;
+use posix_errors::PosixError;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about = "Create new issue")]
@@ -56,7 +57,7 @@ fn set_log_level(args: &Args) {
     log::info!("Log Level is set to {}", log::max_level());
 }
 
-fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue::Error> {
+fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError> {
     git_issue::commit(repo, "gi: Add issue", "gi new mark")?;
     let tags = {
         let empty: Vec<String> = vec![];
@@ -90,7 +91,7 @@ fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue:
     Ok(id)
 }
 
-fn execute(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue::Error> {
+fn execute(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError> {
     let transaction = git_issue::start_transaction(repo)?;
     match new_issue(args, repo) {
         Ok(id) => {
@@ -120,6 +121,6 @@ fn main() {
     };
     match execute(&args, &repo) {
         Ok(id) => println!("Added issue {}: {}", &id.0[..8], args.summary),
-        Err(e) => std::process::exit(*e.code()),
+        Err(e) => std::process::exit(e.code()),
     }
 }
