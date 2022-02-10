@@ -207,3 +207,41 @@ pub fn create_issue(issue: &Issue, repo: &Repository) -> Result<(), PosixError> 
 
     Ok(())
 }
+
+#[must_use]
+pub fn read_template(repo: &Repository, template: &str) -> Option<String> {
+    let mut path_buf = repo.work_tree().expect("Non bare repository");
+    path_buf = path_buf.join(".issues");
+    path_buf = path_buf.join("templates");
+    path_buf = path_buf.join(template);
+    std::fs::read_to_string(path_buf).ok()
+}
+
+/// # Errors
+///
+/// Throws an error when any read/write operation fails or the editor exits with error
+pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
+    let mut tmpfile = repo.work_tree().expect("Non bare repository");
+    tmpfile = tmpfile.join(".issues");
+    tmpfile = tmpfile.join("TMP");
+    std::fs::write(&tmpfile, text)?;
+    let editor = std::env::var("VISUAL").or_else(|_| std::env::var("EDITOR")).expect("VISUAL or EDITOR is set");
+    let mut cmd = std::process::Command::new(editor);
+    cmd.arg(&tmpfile);
+    let result = match cmd.spawn().expect("Failed to execute nvim").wait()?.code() {
+        None => Err(PosixError::new(129, "Process terminated by signal".to_string())),
+        Some(0) => {
+            let text = std::fs::read_to_string(&tmpfile)?;
+            let lines = text.lines();
+            Ok(lines.filter(|l|!l.starts_with('#')).collect::<Vec<&str>>().join("\n"))
+        }, 
+        Some(1) => Err(PosixError::new(1, "Editor aborted".to_string())), 
+        Some(code) => Err(PosixError::new(code, "Editor exited with error".to_string())), 
+    };
+    #[allow(unused_must_use)]
+    {
+        // We do not care if we succseed in removing TMP file
+        std::fs::remove_file(tmpfile);
+    }
+    result
+}

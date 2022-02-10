@@ -20,6 +20,9 @@ struct Args {
     #[clap(short, long_help = "Issue summary")]
     summary: String,
 
+    #[clap(short, long, long_help = "Edit the issue")]
+    edit: bool,
+
     #[clap(long, long_help = "Directory where the GIT_DIR is")]
     git_dir: Option<String>,
     #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
@@ -70,10 +73,19 @@ fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError
 
     let id: git_issue::Id = git_issue::Id(repo.head().expect("HEAD ref exists"));
     let path = id.path(repo);
-
-    log::info!("{:?} + {:?}: {:?}", id, path, tags);
-    let description = args.summary.clone();
     let milestone = args.milestone.clone();
+
+    log::info!("{:?} + {:?}: {:?} | {:?}", id, path, tags, milestone);
+    let description = if args.edit {
+        let template = format!(
+            "{}\n\n{}",
+            args.summary,
+            &git_issue::read_template(repo, "description").unwrap_or_default()
+        );
+        git_issue::edit(repo, &template)?
+    } else {
+        args.summary.clone()
+    };
     let issue = git_issue::Issue {
         id: id.clone(),
         description,
