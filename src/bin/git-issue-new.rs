@@ -57,13 +57,7 @@ fn set_log_level(args: &Args) {
 }
 
 fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue::Error> {
-    let transaction = git_issue::start_transaction(repo)?;
-    if let Err(e) = git_issue::commit(repo, "gi: Add issue", "gi new mark") {
-        log::warn!("Rolling back transaction");
-        log::error!("{}", e.message());
-        git_issue::rollback_transaction(&transaction, repo)?;
-        return Err(e);
-    }
+    git_issue::commit(repo, "gi: Add issue", "gi new mark")?;
     let tags = {
         let empty: Vec<String> = vec![];
         let mut tags = args.tags.as_ref().unwrap_or(&empty).clone();
@@ -86,27 +80,31 @@ fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue:
         tags,
     };
     log::info!("Creating issue: {:?}", issue.id.short());
-    if let Err(e) = git_issue::create_issue(&issue, repo) {
-        log::warn!("Rolling back transaction");
-        log::error!("{}", e.message());
-        git_issue::rollback_transaction(&transaction, repo)?;
-        return Err(e);
-    }
-    if let Err(e) = git_issue::commit(
+    git_issue::create_issue(&issue, repo)?;
+    git_issue::commit(
         repo,
         "gi: Add issue description",
         &format!("gi new description {}", issue.id.0),
-    ) {
-        log::warn!("Rolling back transaction");
-        log::error!("{}", e.message());
-        git_issue::rollback_transaction(&transaction, repo)?;
-        return Err(e);
-    }
-
-    let message = format!("gi({}): {}", &id.0[..8], &args.summary);
-    git_issue::commit_transaction(&transaction, repo, &message)?;
+    )?;
 
     Ok(id)
+}
+
+fn execute(args: &Args, repo: &Repository) -> Result<git_issue::Id, git_issue::Error> {
+    let transaction = git_issue::start_transaction(repo)?;
+    match new_issue(args, repo) {
+        Ok(id) => {
+            let message = format!("gi({}): {}", &id.0[..8], &args.summary);
+            git_issue::commit_transaction(&transaction, repo, &message)?;
+            Ok(id)
+        }
+        Err(e) => {
+            log::error!("{}", e.message());
+            log::warn!("Rolling back transaction");
+            git_issue::rollback_transaction(&transaction, repo)?;
+            Err(e)
+        }
+    }
 }
 
 fn main() {
@@ -120,7 +118,7 @@ fn main() {
         }
         Ok(repo) => repo,
     };
-    match new_issue(&args, &repo) {
+    match execute(&args, &repo) {
         Ok(id) => println!("Added issue {}: {}", &id.0[..8], args.summary),
         Err(e) => std::process::exit(*e.code()),
     }
