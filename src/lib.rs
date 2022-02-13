@@ -89,20 +89,35 @@ impl DataSource {
         git_dir: &Option<String>,
         work_tree: &Option<String>,
     ) -> Result<Self, PosixError> {
-        let repo = match Repository::from_args(None, git_dir.as_deref(), work_tree.as_deref()) {
+        let issues_dir = Self::find_issues_dir();
+        let repo = match Repository::from_args(
+            Some(&issues_dir.to_string_lossy()),
+            git_dir.as_deref(),
+            work_tree.as_deref(),
+        ) {
             Ok(repo) => Ok(repo),
             Err(e) => Err(PosixError::new(4, format!("{}", e))),
         }?;
-        let issues_dir = repo
-            .work_tree()
-            .expect("Non bare repository")
-            .join(".issues");
         let transaction = Some(start_transaction(&repo)?);
         Ok(Self {
             repo,
             issues_dir,
             transaction,
         })
+    }
+
+    fn find_issues_dir() -> PathBuf {
+        let mut cur = std::env::current_dir().expect("Failed to get CWD");
+        loop {
+            let needle = cur.join(".issues");
+            if needle.exists() {
+                return needle;
+            }
+            cur = cur
+                .parent()
+                .expect("Failed to find any .issue dirs")
+                .to_path_buf();
+        }
     }
     /// # Errors
     ///
