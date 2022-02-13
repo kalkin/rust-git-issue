@@ -1,6 +1,5 @@
 use clap::{AppSettings, Parser};
 
-use git_wrapper::Repository;
 use posix_errors::PosixError;
 
 #[derive(Parser, Debug)]
@@ -60,61 +59,43 @@ fn set_log_level(args: &Args) {
     log::info!("Log Level is set to {}", log::max_level());
 }
 
-fn new_issue(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError> {
-    git_issue::commit(repo, "gi: Add issue", "gi new mark")?;
-    let tags = {
-        let empty: Vec<String> = vec![];
-        let mut tags = args.tags.as_ref().unwrap_or(&empty).clone();
-        tags.extend(vec!["open".to_string()]);
-        tags.sort();
-        tags.dedup();
-        tags
-    };
+fn new_issue(args: &Args, data: &git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
+    git_issue::commit(&data.repo, "gi: Add issue", "gi new mark")?;
+    let id: git_issue::Id = git_issue::Id(data.repo.head().expect("HEAD ref exists"));
 
-    let id: git_issue::Id = git_issue::Id(repo.head().expect("HEAD ref exists"));
-    let path = id.path(repo);
+    let empty: Vec<String> = vec![];
+    let tags = args.tags.as_ref().unwrap_or(&empty).clone();
     let milestone = args.milestone.clone();
 
-    log::info!("{:?} + {:?}: {:?} | {:?}", id, path, tags, milestone);
+    log::debug!("{:?} + {:?}: {:?}", id, tags, milestone);
     let description = if args.edit {
         let template = format!(
             "{}\n\n{}",
             args.summary,
-            &git_issue::read_template(repo, "description").unwrap_or_default()
+            &git_issue::read_template(&data.repo, "description").unwrap_or_default()
         );
-        git_issue::edit(repo, &template)?
+        git_issue::edit(&data.repo, &template)?
     } else {
         args.summary.clone()
     };
-    let issue = git_issue::Issue {
-        id: id.clone(),
-        description,
-        milestone,
-        tags,
-    };
-    log::info!("Creating issue: {:?}", issue.id.short());
-    git_issue::create_issue(&issue, repo)?;
-    git_issue::commit(
-        repo,
-        "gi: Add issue description",
-        &format!("gi new description {}", issue.id.0),
-    )?;
-
+    data.new_description(&id, &description)?;
+    for t in tags {
+        data.add_tag(&id, &t)?;
+    }
     Ok(id)
 }
 
-fn execute(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError> {
-    let transaction = git_issue::start_transaction(repo)?;
-    match new_issue(args, repo) {
+fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
+    match new_issue(args, &data) {
         Ok(id) => {
             let message = format!("gi({}): {}", &id.0[..8], &args.summary);
-            git_issue::commit_transaction(&transaction, repo, &message)?;
+            data.finish_transaction(&message)?;
             Ok(id)
         }
         Err(e) => {
             log::error!("{}", e.message());
             log::warn!("Rolling back transaction");
-            git_issue::rollback_transaction(&transaction, repo)?;
+            git_issue::rollback_transaction(&data.transaction.expect("Foo"), &data.repo)?;
             Err(e)
         }
     }
@@ -123,15 +104,14 @@ fn execute(args: &Args, repo: &Repository) -> Result<git_issue::Id, PosixError> 
 fn main() {
     let args = Args::parse();
     set_log_level(&args);
-    let repo = match Repository::from_args(None, args.git_dir.as_deref(), args.work_tree.as_deref())
-    {
+    let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             log::error!(" error: {}", e);
             std::process::exit(128);
         }
         Ok(repo) => repo,
     };
-    match execute(&args, &repo) {
+    match execute(&args, data) {
         Ok(id) => println!("Added issue {}: {}", &id.0[..8], args.summary),
         Err(e) => std::process::exit(e.code()),
     }
