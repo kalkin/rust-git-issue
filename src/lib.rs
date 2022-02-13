@@ -167,8 +167,16 @@ impl DataSource {
             id: id.0.clone(),
             description: text.to_owned(),
         };
-        self.write(id, &description)?;
-        self.write(id, &tag)
+        #[cfg(feature = "strict-compatibility")]
+        {
+            self.write_to_file(id, &tag)?;
+            self.write(id, &description)
+        }
+        #[cfg(not(feature = "strict-compatibility"))]
+        {
+            self.write(id, &description)?;
+            self.write(id, &tag)
+        }
     }
 
     /// # Errors
@@ -345,23 +353,26 @@ impl DataSource {
     pub fn finish_transaction(&mut self, message: &str) -> Result<(), PosixError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
         log::info!("Merging issue changes as not fast forward branch");
-        let sha = self
-            .repo
-            .head()
-            .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
+        #[cfg(not(feature = "strict-compatibility"))]
+        {
+            let sha = self
+                .repo
+                .head()
+                .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
 
-        let start_sha = &transaction.start_sha;
-        x::reset_hard(&self.repo, start_sha)?;
-        let mut cmd = self.repo.git();
-        let out = cmd
-            .args(&["merge", "--no-ff", "-m", message, &sha])
-            .output()
-            .expect("Failed to execute git-stash(1)");
+            let start_sha = &transaction.start_sha;
+            x::reset_hard(&self.repo, start_sha)?;
+            let mut cmd = self.repo.git();
+            let out = cmd
+                .args(&["merge", "--no-ff", "-m", message, &sha])
+                .output()
+                .expect("Failed to execute git-stash(1)");
 
-        if !out.status.success() {
-            let output = String::from_utf8_lossy(&out.stderr).to_string();
-            let code = out.status.code().unwrap_or(1);
-            return Err(PosixError::new(code, output));
+            if !out.status.success() {
+                let output = String::from_utf8_lossy(&out.stderr).to_string();
+                let code = out.status.code().unwrap_or(1);
+                return Err(PosixError::new(code, output));
+            }
         }
         if transaction.stash_before {
             stash_pop(&self.repo)?;
