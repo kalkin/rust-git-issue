@@ -86,6 +86,7 @@ fn new_issue(args: &Args, data: &git_issue::DataSource) -> Result<git_issue::Id,
 }
 
 fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
+    data.start_transaction()?;
     match new_issue(args, &data) {
         Ok(id) => {
             let message = format!("gi({}): {}", &id.0[..8], &args.summary);
@@ -95,7 +96,7 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
         Err(e) => {
             log::error!("{}", e.message());
             log::warn!("Rolling back transaction");
-            git_issue::rollback_transaction(&data.transaction.expect("Foo"), &data.repo)?;
+            data.rollback_transaction()?;
             Err(e)
         }
     }

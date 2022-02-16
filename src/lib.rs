@@ -98,11 +98,10 @@ impl DataSource {
             Ok(repo) => Ok(repo),
             Err(e) => Err(PosixError::new(4, format!("{}", e))),
         }?;
-        let transaction = Some(start_transaction(&repo)?);
         Ok(Self {
             repo,
             issues_dir,
-            transaction,
+            transaction: None,
         })
     }
 
@@ -118,6 +117,17 @@ impl DataSource {
                 .expect("Failed to find any .issue dirs")
                 .to_path_buf();
         }
+    }
+
+    pub fn start_transaction(&mut self) -> Result<(), PosixError> {
+        self.transaction = Some(start_transaction(&self.repo)?);
+        Ok(())
+    }
+
+    pub fn rollback_transaction(mut self) -> Result<(), PosixError> {
+        rollback_transaction(&self.transaction.expect("Foo"), &self.repo)?;
+        self.transaction = None;
+        Ok(())
     }
     /// # Errors
     ///
@@ -397,7 +407,7 @@ fn stash_pop(repo: &Repository) -> Result<(), PosixError> {
 /// # Errors
 ///
 /// Throws an error when any of the git commands fail
-pub fn rollback_transaction(
+fn rollback_transaction(
     transaction: &Transaction,
     repo: &Repository,
 ) -> Result<(), PosixError> {
