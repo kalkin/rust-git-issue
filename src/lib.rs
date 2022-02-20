@@ -119,16 +119,27 @@ impl DataSource {
         }
     }
 
+    /// Start transaction
+    ///
+    /// # Errors
+    ///
+    /// Will fail when `HEAD` can not be resolved
     pub fn start_transaction(&mut self) -> Result<(), PosixError> {
         self.transaction = Some(start_transaction(&self.repo)?);
         Ok(())
     }
 
+    /// Rolls back any commits made during the transaction and restores stashed changes if any.
+    ///
+    /// # Errors
+    ///
+    /// Throws an error when `git reset --hard` or poping stashed changes fails.
     pub fn rollback_transaction(mut self) -> Result<(), PosixError> {
         rollback_transaction(&self.transaction.expect("Foo"), &self.repo)?;
         self.transaction = None;
         Ok(())
     }
+
     /// # Errors
     ///
     /// Will throw error on failure to read from file
