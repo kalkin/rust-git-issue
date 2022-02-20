@@ -369,7 +369,7 @@ impl DataSource {
 /// # Errors
 ///
 /// Will fail when `HEAD` can not be resolved
-pub fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
+fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
     let start_sha = repo
         .head()
         .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
