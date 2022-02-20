@@ -407,10 +407,7 @@ fn stash_pop(repo: &Repository) -> Result<(), PosixError> {
 /// # Errors
 ///
 /// Throws an error when any of the git commands fail
-fn rollback_transaction(
-    transaction: &Transaction,
-    repo: &Repository,
-) -> Result<(), PosixError> {
+fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<(), PosixError> {
     x::reset_hard(repo, &transaction.start_sha)?;
     if transaction.stash_before {
         stash_pop(repo)?;
