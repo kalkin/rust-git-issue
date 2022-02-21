@@ -19,3 +19,4 @@ git-wrapper = "0.5.*"
 log = "^0.4"
 posix-errors = "^1.2.0"
 simple_logger = { version="^2.1.0", default-features=false, features=["stderr", "colors"] }
+terminal-link = "^0.1.0"
