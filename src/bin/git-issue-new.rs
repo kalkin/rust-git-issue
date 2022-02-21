@@ -63,15 +63,26 @@ fn set_log_level(args: &Args) {
     log::info!("Log Level is set to {}", log::max_level());
 }
 
-fn new_issue(args: &Args, data: &git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
+fn create(
+    data: &git_issue::DataSource,
+    description: &str,
+    tags: Vec<String>,
+    milestone: Option<String>,
+) -> Result<git_issue::Id, PosixError> {
     git_issue::commit(&data.repo, "gi: Add issue", "gi new mark")?;
     let id: git_issue::Id = git_issue::Id(data.repo.head().expect("HEAD ref exists"));
 
+    data.new_description(&id, description)?;
+    for t in tags {
+        data.add_tag(&id, &t)?;
+    }
+    Ok(id)
+}
+
+fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
     let empty: Vec<String> = vec![];
     let tags = args.tags.as_ref().unwrap_or(&empty).clone();
     let milestone = args.milestone.clone();
-
-    log::debug!("{:?} + {:?}: {:?}", id, tags, milestone);
     let description = if args.edit {
         let template = format!(
             "{}\n\n{}",
@@ -82,16 +93,9 @@ fn new_issue(args: &Args, data: &git_issue::DataSource) -> Result<git_issue::Id,
     } else {
         args.summary.clone()
     };
-    data.new_description(&id, &description)?;
-    for t in tags {
-        data.add_tag(&id, &t)?;
-    }
-    Ok(id)
-}
 
-fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
     data.start_transaction()?;
-    match new_issue(args, &data) {
+    match create(&data, &description, tags, milestone) {
         Ok(id) => {
             let message = format!("gi({}): {}", &id.0[..8], &args.summary);
             data.finish_transaction(&message)?;
