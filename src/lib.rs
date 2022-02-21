@@ -152,7 +152,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn new_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
-        log::info!("Creating new description");
         let tag = CommitProperty::Tag {
             action: Action::Add,
             tag: "open".to_string(),
@@ -170,7 +169,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
-        log::info!("Editing new description");
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
             id: id.0.clone(),
@@ -183,7 +181,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
-        log::info!("Adding tag {}", tag);
         let property = CommitProperty::Tag {
             action: Action::Add,
             tag: tag.to_string(),
@@ -195,7 +192,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
-        log::info!("Removing tag {}", tag);
         let property = CommitProperty::Tag {
             action: Action::Remove,
             tag: tag.to_string(),
@@ -207,7 +203,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
-        log::info!("Setting milestone {}", milestone);
         let property = CommitProperty::Milestone {
             action: Action::Add,
             milestone: milestone.to_string(),
@@ -219,7 +214,6 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
-        log::info!("Removing milestone {}", milestone);
         let property = CommitProperty::Milestone {
             action: Action::Add,
             milestone: milestone.to_string(),
@@ -324,7 +318,6 @@ impl DataSource {
             } => format!("gi: Remove milestone\n\ngi milestone remove {}", milestone),
         };
 
-        log::debug!("Commiting:\n{}", &message);
         match self.repo.commit(&message) {
             Ok(_) => Ok(()),
             Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
@@ -375,13 +368,12 @@ fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
         .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
 
     let stash_before = !repo.is_clean();
-    log::debug!("Stashing needed? {}", stash_before);
     let result = Transaction {
         start_sha,
         stash_before,
     };
     if stash_before {
-        log::info!("Stashing repository changes");
+        log::debug!("Stashing repository changes");
         let mut cmd = repo.git();
         cmd.arg("stash");
         if log::max_level() != log::Level::Trace {
@@ -401,7 +393,7 @@ fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
 
 fn stash_pop(repo: &Repository) -> Result<(), PosixError> {
     let mut cmd = repo.git();
-    log::info!("Popping stashed repository changes");
+    log::debug!("Popping stashed repository changes");
     let out = cmd
         .args(&["stash", "pop", "--quiet"])
         .output()
