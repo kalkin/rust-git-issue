@@ -257,7 +257,7 @@ impl DataSource {
                 }
                 tags.sort_unstable();
                 tags.dedup();
-                std::fs::write(path, tags.join("\n"))?;
+                std::fs::write(path, format!("{}\n", tags.join("\n")))?;
             }
             CommitProperty::Milestone {
                 milestone, action, ..
