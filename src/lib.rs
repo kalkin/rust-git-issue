@@ -75,7 +75,7 @@ impl CommitProperty {
 
 pub struct DataSource {
     pub repo: Repository,
-    issues_dir: PathBuf,
+    pub issues_dir: PathBuf,
     pub transaction: Option<Transaction>,
 }
 
