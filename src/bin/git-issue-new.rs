@@ -76,6 +76,9 @@ fn create(
     for t in tags {
         data.add_tag(&id, &t)?;
     }
+    if let Some(m) = milestone {
+        data.add_milestone(&id, &m)?;
+    }
     Ok(id)
 }
 
