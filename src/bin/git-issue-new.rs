@@ -1,11 +1,15 @@
-use clap::{AppSettings, Parser};
+use clap::Parser;
 
 use posix_errors::PosixError;
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about = "Create new issue")]
-#[clap(global_setting(AppSettings::DontCollapseArgsInUsage))]
-#[clap(global_setting(AppSettings::HelpExpected))]
+#[clap(
+    author,
+    version,
+    about = "Create new issue",
+    help_expected = true,
+    dont_collapse_args_in_usage = true
+)]
 struct Args {
     #[clap(short, name = "TAG", long = "tag", long_help = "Tags to assign")]
     tags: Option<Vec<String>>,
