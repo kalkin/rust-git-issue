@@ -316,12 +316,12 @@ impl DataSource {
                 action: Action::Add,
                 milestone,
                 ..
-            } => format!("gi: Add milestone\n\ngi add milestone {}", milestone),
+            } => format!("gi: Add milestone\n\ngi milestone add {}", milestone),
             CommitProperty::Milestone {
                 action: Action::Remove,
                 milestone,
                 ..
-            } => format!("gi: Remove milestone\n\ngi remove milestone {}", milestone),
+            } => format!("gi: Remove milestone\n\ngi milestone remove {}", milestone),
         };
 
         log::debug!("Commiting:\n{}", &message);
