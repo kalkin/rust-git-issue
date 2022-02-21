@@ -466,7 +466,7 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
         .expect("VISUAL or EDITOR is set");
     let mut cmd = std::process::Command::new(editor);
     cmd.arg(&tmpfile);
-    let result = match cmd.spawn().expect("Failed to execute nvim").wait()?.code() {
+    let result = match cmd.spawn().expect("Failed to execute EDITOR").wait()?.code() {
         None => Err(PosixError::new(
             129,
             "Process terminated by signal".to_string(),
