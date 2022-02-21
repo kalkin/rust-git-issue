@@ -197,7 +197,7 @@ impl DataSource {
     pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
         log::info!("Removing tag {}", tag);
         let property = CommitProperty::Tag {
-            action: Action::Add,
+            action: Action::Remove,
             tag: tag.to_string(),
         };
         self.write(id, &property)
