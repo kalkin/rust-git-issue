@@ -27,6 +27,7 @@ pub enum Property {
 
 impl Property {
     #[must_use]
+    #[inline]
     pub fn filename(&self) -> String {
         match self {
             Self::Description(_) => "description",
@@ -85,6 +86,7 @@ impl DataSource {
     /// Will throw an error when:
     /// - Fails to find a non-bare git repository
     /// - Fails to resolve HEAD ref
+    #[inline]
     pub fn try_new(
         git_dir: &Option<String>,
         work_tree: &Option<String>,
@@ -124,6 +126,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will fail when `HEAD` can not be resolved
+    #[inline]
     pub fn start_transaction(&mut self) -> Result<(), PosixError> {
         self.transaction = Some(start_transaction(&self.repo)?);
         Ok(())
@@ -134,6 +137,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Throws an error when `git reset --hard` or poping stashed changes fails.
+    #[inline]
     pub fn rollback_transaction(mut self) -> Result<(), PosixError> {
         rollback_transaction(&self.transaction.expect("Foo"), &self.repo)?;
         self.transaction = None;
@@ -143,6 +147,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to read from file
+    #[inline]
     pub fn read(&self, id: &Id, prop: &Property) -> Result<String, PosixError> {
         let path = id.path(&self.issues_dir).join(prop.filename());
         Ok(std::fs::read_to_string(path)?)
@@ -151,6 +156,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn new_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
         let tag = CommitProperty::Tag {
             action: Action::Add,
@@ -168,6 +174,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
@@ -180,6 +187,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Tag {
             action: Action::Add,
@@ -191,6 +199,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Tag {
             action: Action::Remove,
@@ -202,6 +211,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
@@ -213,6 +223,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO
+    #[inline]
     pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
@@ -330,6 +341,7 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to commit
+    #[inline]
     pub fn finish_transaction(&mut self, message: &str) -> Result<(), PosixError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
         log::info!("Merging issue changes as not fast forward branch");
@@ -422,6 +434,7 @@ fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<
 /// # Errors
 ///
 /// Throws an error when it fails to commit
+#[inline]
 pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), PosixError> {
     let message = format!("{}\n\n{}", subject, message);
     let mut cmd = repo.git();
@@ -445,6 +458,7 @@ pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Pos
 }
 
 #[must_use]
+#[inline]
 pub fn read_template(repo: &Repository, template: &str) -> Option<String> {
     let mut path_buf = repo.work_tree().expect("Non bare repository");
     path_buf = path_buf.join(".issues");
@@ -456,6 +470,7 @@ pub fn read_template(repo: &Repository, template: &str) -> Option<String> {
 /// # Errors
 ///
 /// Throws an error when any read/write operation fails or the editor exits with error
+#[inline]
 pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
     let mut tmpfile = repo.work_tree().expect("Non bare repository");
     tmpfile = tmpfile.join(".issues");
