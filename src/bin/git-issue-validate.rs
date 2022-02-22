@@ -24,7 +24,7 @@ fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> 
     let mut result = true;
     for entry in fs::read_dir(path)? {
         let dir_entry = entry?;
-        if dir_entry.file_type()?.is_file() {
+        if !dir_entry.file_type()?.is_dir() {
             let path = dir_entry.path();
             let text = fs::read_to_string(&path)?;
             if !text.ends_with('\n') {
