@@ -3,6 +3,11 @@ name = "git-issue"
 version = "0.0.2"
 authors = ["Bahtiar `kalkin-` Gadimov <bahtiar@gadimov.de>"]
 edition = "2021"
+description = "Distributed issue management system based on Git"
+repository = "https://localhost/"
+license="propritary"
+keywords = ["git", "cli", "tracking", "issues"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "git-issue-new"
