@@ -293,8 +293,8 @@ impl DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to do IO or commiting
-    fn write(&self, id: &Id, property: &CommitProperty) -> Result<(), PosixError> {
-        self.write_to_file(id, property)?;
+    fn write(&self, target_id: &Id, property: &CommitProperty) -> Result<(), PosixError> {
+        self.write_to_file(target_id, property)?;
 
         let message = match property {
             CommitProperty::Description {
@@ -359,9 +359,9 @@ impl DataSource {
             .expect("Failed to execute git-stash(1)");
 
         if !out.status.success() {
-            let message = String::from_utf8_lossy(&out.stderr).to_string();
+            let output = String::from_utf8_lossy(&out.stderr).to_string();
             let code = out.status.code().unwrap_or(1);
-            return Err(PosixError::new(code, message));
+            return Err(PosixError::new(code, output));
         }
         if transaction.stash_before {
             stash_pop(&self.repo)?;
@@ -450,9 +450,9 @@ pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), Pos
         .output()
         .expect("Failed to execute git-commit(1)");
     if !out.status.success() {
-        let message = String::from_utf8_lossy(&out.stderr).to_string();
+        let output = String::from_utf8_lossy(&out.stderr).to_string();
         let code = out.status.code().unwrap_or(1);
-        return Err(PosixError::new(code, message));
+        return Err(PosixError::new(code, output));
     }
     Ok(())
 }
@@ -492,8 +492,8 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
             "Process terminated by signal".to_owned(),
         )),
         Some(0) => {
-            let text = std::fs::read_to_string(&tmpfile)?;
-            let lines = text.lines();
+            let input = std::fs::read_to_string(&tmpfile)?;
+            let lines = input.lines();
             Ok(lines
                 .filter(|l| !l.starts_with('#'))
                 .collect::<Vec<&str>>()

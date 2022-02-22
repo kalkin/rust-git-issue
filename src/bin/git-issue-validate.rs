@@ -25,15 +25,15 @@ fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> 
     for entry in fs::read_dir(path)? {
         let dir_entry = entry?;
         if !dir_entry.file_type()?.is_dir() {
-            let path = dir_entry.path();
-            let text = fs::read_to_string(&path)?;
+            let cur_path = dir_entry.path();
+            let text = fs::read_to_string(&cur_path)?;
             if !text.ends_with('\n') {
-                let url = path.to_string_lossy();
+                let url = cur_path.to_string_lossy();
                 let name = format!("{}/{}", &id[..8], dir_entry.file_name().to_string_lossy());
                 let link = terminal_link::Link::new(&name, &url);
                 if fix {
                     println!("{}:Fixing NL at EOF", link);
-                    fs::write(path, format!("{}\n", text))?;
+                    fs::write(cur_path, format!("{}\n", text))?;
                 } else {
                     println!("{}:Missing NL at EOF", link);
                     result = false;
