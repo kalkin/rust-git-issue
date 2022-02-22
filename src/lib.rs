@@ -435,8 +435,8 @@ fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<
 ///
 /// Throws an error when it fails to commit
 #[inline]
-pub fn commit(repo: &Repository, subject: &str, message: &str) -> Result<(), PosixError> {
-    let message = format!("{}\n\n{}", subject, message);
+pub fn commit(repo: &Repository, subject: &str, body: &str) -> Result<(), PosixError> {
+    let message = format!("{}\n\n{}", subject, body);
     let mut cmd = repo.git();
     let out = cmd
         .args(&[
