@@ -34,7 +34,7 @@ impl Property {
             Self::Tags(_) => "tags",
             Self::Milestone(_) => "milestone",
         }
-        .to_string()
+        .to_owned()
     }
 }
 enum ChangeAction {
@@ -70,7 +70,7 @@ impl CommitProperty {
             Self::Tag { .. } => "tags",
             Self::Milestone { .. } => "milestone",
         }
-        .to_string()
+        .to_owned()
     }
 }
 
@@ -160,12 +160,12 @@ impl DataSource {
     pub fn new_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
         let tag = CommitProperty::Tag {
             action: Action::Add,
-            tag: "open".to_string(),
+            tag: "open".to_owned(),
         };
         let description = CommitProperty::Description {
             action: ChangeAction::New,
             id: id.0.clone(),
-            description: text.to_string(),
+            description: text.to_owned(),
         };
         self.write(id, &description)?;
         self.write(id, &tag)
@@ -179,7 +179,7 @@ impl DataSource {
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
             id: id.0.clone(),
-            description: text.to_string(),
+            description: text.to_owned(),
         };
         self.write(id, &property)
     }
@@ -191,7 +191,7 @@ impl DataSource {
     pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Tag {
             action: Action::Add,
-            tag: tag.to_string(),
+            tag: tag.to_owned(),
         };
         self.write(id, &property)
     }
@@ -203,7 +203,7 @@ impl DataSource {
     pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Tag {
             action: Action::Remove,
-            tag: tag.to_string(),
+            tag: tag.to_owned(),
         };
         self.write(id, &property)
     }
@@ -215,7 +215,7 @@ impl DataSource {
     pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
-            milestone: milestone.to_string(),
+            milestone: milestone.to_owned(),
         };
         self.write(id, &property)
     }
@@ -227,7 +227,7 @@ impl DataSource {
     pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
-            milestone: milestone.to_string(),
+            milestone: milestone.to_owned(),
         };
         self.write(id, &property)
     }
@@ -280,7 +280,7 @@ impl DataSource {
         match self.repo.stage(path) {
             Ok(_) => Ok(()),
             Err(StagingError::BareRepository) => {
-                Err(PosixError::new(128, "Bare repository".to_string()))
+                Err(PosixError::new(128, "Bare repository".to_owned()))
             }
             Err(StagingError::FileDoesNotExist(p)) => Err(PosixError::new(
                 128,
@@ -333,7 +333,7 @@ impl DataSource {
             Ok(_) => Ok(()),
             Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
             Err(CommitError::BareRepository) => {
-                Err(PosixError::new(128, "Bare repository".to_string()))
+                Err(PosixError::new(128, "Bare repository".to_owned()))
             }
         }
     }
@@ -348,7 +348,7 @@ impl DataSource {
         let sha = self
             .repo
             .head()
-            .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
+            .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
 
         let start_sha = &transaction.start_sha;
         x::reset_hard(&self.repo, start_sha)?;
@@ -377,7 +377,7 @@ impl DataSource {
 fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
     let start_sha = repo
         .head()
-        .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_string()))?;
+        .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
 
     let stash_before = !repo.is_clean();
     let result = Transaction {
@@ -489,7 +489,7 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
     {
         None => Err(PosixError::new(
             129,
-            "Process terminated by signal".to_string(),
+            "Process terminated by signal".to_owned(),
         )),
         Some(0) => {
             let text = std::fs::read_to_string(&tmpfile)?;
@@ -499,11 +499,8 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
                 .collect::<Vec<&str>>()
                 .join("\n"))
         }
-        Some(1) => Err(PosixError::new(1, "Editor aborted".to_string())),
-        Some(code) => Err(PosixError::new(
-            code,
-            "Editor exited with error".to_string(),
-        )),
+        Some(1) => Err(PosixError::new(1, "Editor aborted".to_owned())),
+        Some(code) => Err(PosixError::new(code, "Editor exited with error".to_owned())),
     };
     #[allow(unused_must_use)]
     {
