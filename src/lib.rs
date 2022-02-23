@@ -520,3 +520,29 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
     }
     result
 }
+
+#[cfg(test)]
+#[cfg(not(tarpaulin_include))]
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+
+        // Find and cut the rest of the path
+        match &name[..name.len() - 3].rfind(':') {
+            Some(pos) => &name[pos + 1..name.len() - 3],
+            None => &name[..name.len() - 3],
+        }
+    }};
+}
+
+#[cfg(test)]
+fn test_source(tmp: &Path) -> DataSource {
+    assert!(create(tmp, false).is_ok(), "Create issue repository");
+    let issues_dir = tmp.join(".issues");
+    let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None).unwrap();
+    DataSource::new(issues_dir.to_path_buf(), repo)
+}
