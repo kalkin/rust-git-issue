@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use git_wrapper::x;
 use git_wrapper::{CommitError, Repository, StagingError};
-use posix_errors::PosixError;
+use posix_errors::{PosixError, EEXIST};
 
 pub struct Transaction {
     start_sha: String,
@@ -81,6 +81,16 @@ pub struct DataSource {
 }
 
 impl DataSource {
+    #[must_use]
+    #[inline]
+    pub const fn new(issues_dir: PathBuf, repo: Repository) -> Self {
+        Self {
+            repo,
+            issues_dir,
+            transaction: None,
+        }
+    }
+
     /// # Errors
     ///
     /// Will throw an error when:
@@ -382,6 +392,33 @@ impl DataSource {
     }
 }
 
+const DESCRIPTION: &str = "
+
+# Start with a one-line summary of the issue.  Leave a blank line and
+# continue with the issue's detailed description.
+#
+# Remember:
+# - Be precise
+# - Be clear: explain how to reproduce the problem, step by step,
+#   so others can reproduce the issue
+# - Include only one problem per issue report
+#
+# Lines starting with '#' will be ignored, and an empty message aborts
+# the issue addition.
+";
+
+const COMMENT: &str = "
+
+# Please write here a comment regarding the issue.
+# Keep the conversation constructive and polite.
+# Lines starting with '#' will be ignored, and an empty message aborts
+# the issue addition.
+";
+
+const README: &str = "This is an distributed issue tracking repository based on Git.
+Visit [git-issue](https://github.com/dspinellis/git-issue) for more information.
+";
+
 /// # Errors
 ///
 /// Will fail when `HEAD` can not be resolved
@@ -480,6 +517,57 @@ pub fn read_template(repo: &Repository, template: &str) -> Option<String> {
 
 /// # Errors
 ///
+/// Throws an error when it fails to create repository or to make a commit
+#[inline]
+pub fn create(path: &Path, existing: bool) -> Result<(), PosixError> {
+    let issues_dir = path.join(".issues");
+    if issues_dir.exists() {
+        return Err(PosixError::new(
+            EEXIST,
+            "An .issues directory is already present".to_owned(),
+        ));
+    }
+    std::fs::create_dir_all(&issues_dir)?;
+
+    let repo = if existing {
+        match Repository::default() {
+            Err(e) => Err(e.into()),
+            Ok(r) => Ok(r),
+        }
+    } else {
+        match Repository::create(&issues_dir) {
+            Ok(r) => Ok(r),
+            Err(e) => Err(PosixError::new(1, e)),
+        }
+    }?;
+
+    let config = issues_dir.join("config");
+    std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&config)?;
+    repo.stage(&config)?;
+
+    let templates = issues_dir.join("templates");
+    std::fs::create_dir_all(&templates)?;
+
+    let description = templates.join("description");
+    std::fs::write(&description, DESCRIPTION)?;
+    repo.stage(&description)?;
+
+    let comment = templates.join("comment");
+    std::fs::write(&comment, COMMENT)?;
+    repo.stage(&comment)?;
+
+    let readme = issues_dir.join("README.md");
+    std::fs::write(&readme, README)?;
+    repo.stage(&readme)?;
+
+    commit(&repo, "gi: Initialize issues repository", "gi init")
+}
+
+/// # Errors
+///
 /// Throws an error when any read/write operation fails or the editor exits with error
 #[inline]
 pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
@@ -539,6 +627,26 @@ macro_rules! function {
     }};
 }
 
+#[cfg(test)]
+mod create_repo {
+    #[test]
+    fn dir_exists() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp = tmp_dir.path();
+        assert!(std::fs::create_dir(tmp.join(".issues")).is_ok());
+        eprintln!("Created dir");
+        let result = crate::create(tmp, false);
+        assert!(!result.is_ok());
+    }
+
+    #[test]
+    fn create() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp = tmp_dir.path();
+        let result = crate::create(tmp, false);
+        assert!(result.is_ok());
+    }
+}
 #[cfg(test)]
 fn test_source(tmp: &Path) -> DataSource {
     assert!(create(tmp, false).is_ok(), "Create issue repository");
