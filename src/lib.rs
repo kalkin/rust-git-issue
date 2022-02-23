@@ -305,11 +305,15 @@ impl DataSource {
     /// Will throw error on failure to do IO
     #[inline]
     pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
-        let property = CommitProperty::Tag {
-            action: Action::Add,
-            tag: tag.to_owned(),
-        };
-        self.write(id, &property)
+        if self.tags(id).contains(&tag.to_owned()) {
+            Ok(())
+        } else {
+            let property = CommitProperty::Tag {
+                action: Action::Add,
+                tag: tag.to_owned(),
+            };
+            self.write(id, &property)
+        }
     }
 
     /// # Errors
@@ -317,11 +321,15 @@ impl DataSource {
     /// Will throw error on failure to do IO
     #[inline]
     pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
-        let property = CommitProperty::Tag {
-            action: Action::Remove,
-            tag: tag.to_owned(),
-        };
-        self.write(id, &property)
+        if self.tags(id).contains(&tag.to_owned()) {
+            let property = CommitProperty::Tag {
+                action: Action::Remove,
+                tag: tag.to_owned(),
+            };
+            self.write(id, &property)
+        } else {
+            Ok(())
+        }
     }
 
     /// # Errors
@@ -899,5 +907,69 @@ mod create_issue {
 
         let actual_milestone = data.milestone(&issue_id);
         assert_eq!(actual_milestone, None);
+    }
+}
+
+#[cfg(test)]
+mod add_tag {
+    #[test]
+    fn add_tag() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let desc = "Foo Bar";
+        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        data.add_tag(&issue_id, "foo").unwrap();
+
+        let actual_tags = data.tags(&issue_id);
+        let expected_tags = vec!["foo".to_string(), "open".to_string()];
+        assert_eq!(actual_tags, expected_tags);
+    }
+
+    #[test]
+    fn add_duplicate_tag() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let desc = "Foo Bar";
+        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        let result = data.add_tag(&issue_id, "open");
+        assert!(result.is_ok(), "{:?}", result);
+
+        let actual_tags = data.tags(&issue_id);
+        let expected_tags = vec!["open".to_string()];
+        assert_eq!(actual_tags, expected_tags);
+    }
+
+    #[test]
+    fn remove_tag() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let desc = "Foo Bar";
+        let issue_id = data
+            .create_issue(&desc, vec!["foo".to_string()], None)
+            .unwrap();
+        let result = data.remove_tag(&issue_id, "foo");
+        assert!(result.is_ok(), "{:?}", result);
+
+        let actual_tags = data.tags(&issue_id);
+        let expected_tags = vec!["open".to_string()];
+        assert_eq!(actual_tags, expected_tags);
+    }
+
+    #[test]
+    fn remove_non_existing_tag() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let desc = "Foo Bar";
+        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        let result = data.remove_tag(&issue_id, "foo");
+        assert!(result.is_ok(), "{:?}", result);
+
+        let actual_tags = data.tags(&issue_id);
+        let expected_tags = vec!["open".to_string()];
+        assert_eq!(actual_tags, expected_tags);
     }
 }
