@@ -258,7 +258,7 @@ impl DataSource {
     #[inline]
     pub fn read(&self, id: &Id, prop: &Property) -> Result<String, PosixError> {
         let path = id.path(&self.issues_dir).join(prop.filename());
-        Ok(std::fs::read_to_string(path)?)
+        Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
     }
 
     /// # Errors
@@ -401,7 +401,7 @@ impl DataSource {
         log::debug!("Writing {:?}", path);
         match property {
             CommitProperty::Description { description, .. } => {
-                std::fs::write(path, description)?;
+                std::fs::write(path, format!("{}\n", description.trim_end()))?;
             }
             CommitProperty::Tag { tag, action, .. } => {
                 let value = std::fs::read_to_string(path);
@@ -907,6 +907,39 @@ mod create_issue {
 
         let actual_milestone = data.milestone(&issue_id);
         assert_eq!(actual_milestone, None);
+    }
+
+    #[test]
+    fn nl_at_eof() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        let desc = "Foo Bar";
+        let result = data.create_issue(
+            &desc,
+            vec!["foo".to_string()],
+            Some("World domination!".to_owned()),
+        );
+        assert!(result.is_ok());
+        let issue_id = result.unwrap();
+        data.find_issue(&issue_id.0).unwrap();
+        let issue_dir = issue_id.path(&data.issues_dir);
+        {
+            let actual = std::fs::read_to_string(issue_dir.join("description")).unwrap();
+            let expected = "Foo Bar\n";
+            assert_eq!(actual, expected, "Description ends with NL");
+        }
+
+        {
+            let actual = std::fs::read_to_string(issue_dir.join("tags")).unwrap();
+            let expected = "foo\nopen\n";
+            assert_eq!(actual, expected, "Tags ends with NL");
+        }
+
+        {
+            let actual = std::fs::read_to_string(issue_dir.join("milestone")).unwrap();
+            let expected = "World domination!\n";
+            assert_eq!(actual, expected, "Milestone ends with NL");
+        }
     }
 }
 
