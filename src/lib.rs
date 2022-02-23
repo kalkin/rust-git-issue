@@ -19,6 +19,17 @@ impl Id {
     }
 }
 
+impl From<&PathBuf> for Id {
+    #[inline]
+    fn from(path: &PathBuf) -> Self {
+        let parent = path.parent().expect("parent dir");
+        let prefix = parent.file_name().expect("File name").to_str().expect("");
+        let file_name = path.file_name().expect("File name").to_str().expect("");
+
+        Self(format!("{}{}", prefix, file_name))
+    }
+}
+
 pub enum Property {
     Description(String),
     Tags(Vec<String>),
@@ -80,6 +91,12 @@ pub struct DataSource {
     pub transaction: Option<Transaction>,
 }
 
+#[derive(Debug)]
+pub enum FindError {
+    NotFound,
+    MultipleFound(Vec<Id>),
+}
+
 impl DataSource {
     #[must_use]
     #[inline]
@@ -115,6 +132,59 @@ impl DataSource {
             issues_dir,
             transaction: None,
         })
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if no issue matching id found or more than one issue are found.
+    ///
+    /// # Panics
+    ///
+    /// When only one char is specified but multiple issue prefixes match it
+    #[inline]
+    pub fn find_issue(&self, id: &str) -> Result<Id, FindError> {
+        match id.len() {
+            1 => {
+                let path = self.issues_dir.join("issues").join(&id);
+                let dirs: Vec<PathBuf> = list_dirs(&path);
+                if dirs.len() == 1 {
+                    let prefix = &dirs[0].file_name().expect("File name").to_str().expect("");
+                    self.find_issue(prefix)
+                } else {
+                    todo!("Should return FindError::MultipleFound");
+                }
+            }
+            2 => {
+                let path = self.issues_dir.join("issues").join(&id);
+                if path.exists() {
+                    let dirs: Vec<PathBuf> = list_dirs(&path);
+                    if dirs.len() == 1 {
+                        Ok(Id::from(&dirs[0]))
+                    } else {
+                        let ids = dirs.iter().map(Id::from).collect();
+                        Err(FindError::MultipleFound(ids))
+                    }
+                } else {
+                    Err(FindError::NotFound)
+                }
+            }
+            _ => {
+                {
+                    let path = self.issues_dir.join("issues").join(&id[..2]).join(&id[2..]);
+                    if path.exists() {
+                        return Ok(Id(id.to_owned()));
+                    }
+                }
+                let path = self.issues_dir.join("issues").join(&id[..2]);
+                let dirs: Vec<PathBuf> = list_dirs(&path);
+                if dirs.len() == 1 {
+                    Ok(Id::from(&dirs[0]))
+                } else {
+                    let ids = dirs.iter().map(Id::from).collect();
+                    Err(FindError::MultipleFound(ids))
+                }
+            }
+        }
     }
 
     fn find_issues_dir() -> PathBuf {
@@ -607,6 +677,58 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
         std::fs::remove_file(tmpfile);
     }
     result
+}
+
+fn list_dirs(path: &Path) -> Vec<PathBuf> {
+    let paths: Vec<PathBuf> = path
+        .read_dir()
+        .expect("Directory")
+        .filter(|x| {
+            if let Ok(dir_entry) = x {
+                if let Ok(meta) = dir_entry.metadata() {
+                    return meta.is_dir();
+                }
+            }
+            false
+        })
+        .map(|d| d.expect("IO Successful").path())
+        .collect();
+    paths
+}
+
+#[cfg(test)]
+#[cfg(not(tarpaulin_include))]
+mod test_find_issue {
+    use crate::DataSource;
+    #[test]
+    fn by_full_id() {
+        let data = DataSource::try_new(&None, &None).unwrap();
+        let issue = data
+            .find_issue("2d9deaf1b8b146d7e3c4c92133532b314da3e350")
+            .expect("Found issue");
+        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+    }
+
+    #[test]
+    fn by_two_chars() {
+        let data = DataSource::try_new(&None, &None).unwrap();
+        let issue = data.find_issue("2d").expect("Found issue");
+        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+    }
+
+    #[test]
+    fn multiple_results() {
+        let data = DataSource::try_new(&None, &None).unwrap();
+        let issue = data.find_issue("1f");
+        assert!(issue.is_err());
+    }
+
+    #[test]
+    fn short_id() {
+        let data = DataSource::try_new(&None, &None).unwrap();
+        let issue = data.find_issue("2d9deaf").expect("Found issue");
+        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+    }
 }
 
 #[cfg(test)]
