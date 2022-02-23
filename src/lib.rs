@@ -31,8 +31,8 @@ impl From<&PathBuf> for Id {
 }
 
 pub enum Property {
-    Description(String),
-    Tags(Vec<String>),
+    Description,
+    Tags,
     Milestone(String),
 }
 
@@ -41,8 +41,8 @@ impl Property {
     #[inline]
     pub fn filename(&self) -> String {
         match self {
-            Self::Description(_) => "description",
-            Self::Tags(_) => "tags",
+            Self::Description => "description",
+            Self::Tags => "tags",
             Self::Milestone(_) => "milestone",
         }
         .to_owned()
@@ -106,6 +106,34 @@ impl DataSource {
             issues_dir,
             transaction: None,
         }
+    }
+
+    /// # Errors
+    ///
+    /// Throws an error if fails to create new issue
+    #[inline]
+    pub fn create_issue(
+        &self,
+        description: &str,
+        tags: Vec<String>,
+        milestone: Option<String>,
+    ) -> Result<Id, PosixError> {
+        let mark_text = "gi new mark";
+        commit(&self.repo, "gi: Add issue", mark_text)?;
+        let id: Id = Id(self.repo.head().expect("HEAD ref exists"));
+        log::debug!("{} {:?}", mark_text, id);
+
+        self.new_description(&id, description)?;
+        log::debug!("gi new description {:?}", id);
+        for t in tags {
+            self.add_tag(&id, &t)?;
+            log::debug!("gi tag add {}", t);
+        }
+        if let Some(m) = milestone {
+            self.add_milestone(&id, &m)?;
+            log::debug!("gi milestone add {}", m);
+        }
+        Ok(id)
     }
 
     /// # Errors
@@ -318,6 +346,40 @@ impl DataSource {
             milestone: milestone.to_owned(),
         };
         self.write(id, &property)
+    }
+    #[must_use]
+    #[inline]
+    pub fn milestone(&self, id: &Id) -> Option<String> {
+        let dir_path = id.path(&self.issues_dir);
+        let milestone_path = &dir_path.join("milestone");
+        let value = std::fs::read_to_string(milestone_path);
+        value.is_ok().then(|| {
+            value
+                .as_ref()
+                .expect("already checked value")
+                .trim()
+                .to_owned()
+        })
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn tags(&self, id: &Id) -> Vec<String> {
+        let dir_path = id.path(&self.issues_dir);
+        let tags_path = &dir_path.join("tags");
+        let value = std::fs::read_to_string(tags_path);
+        if value.is_ok() {
+            value
+                .as_ref()
+                .expect("already checked value")
+                .lines()
+                .collect::<Vec<&str>>()
+        } else {
+            vec![]
+        }
+        .iter()
+        .map(ToString::to_string)
+        .collect()
     }
 
     fn write_to_file(&self, id: &Id, property: &CommitProperty) -> Result<(), PosixError> {
@@ -775,4 +837,67 @@ fn test_source(tmp: &Path) -> DataSource {
     let issues_dir = tmp.join(".issues");
     let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None).unwrap();
     DataSource::new(issues_dir.to_path_buf(), repo)
+}
+
+#[cfg(test)]
+mod create_issue {
+
+    #[test]
+    fn only_message() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        let desc = "Foo Bar";
+        let result = data.create_issue(&desc, vec![], None);
+        assert!(result.is_ok());
+        let issue_id = result.unwrap();
+        data.find_issue(&issue_id.0).unwrap();
+        let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
+        assert_eq!(actual_desc, desc);
+
+        let actual_tags = data.tags(&issue_id);
+        assert_eq!(actual_tags, vec!["open".to_string()]);
+
+        let actual_milestone = data.milestone(&issue_id);
+        assert_eq!(actual_milestone, None);
+    }
+
+    #[test]
+    fn with_milestone() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        let desc = "Foo Bar";
+        let result = data.create_issue(&desc, vec![], Some("High Goal".to_string()));
+        assert!(result.is_ok());
+        let issue_id = result.unwrap();
+        data.find_issue(&issue_id.0).unwrap();
+
+        let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
+        assert_eq!(actual_desc, desc);
+
+        let actual_tags = data.tags(&issue_id);
+        assert_eq!(actual_tags, vec!["open".to_string()]);
+
+        let actual_milestone = data.milestone(&issue_id);
+        assert_eq!(actual_milestone, Some("High Goal".to_string()));
+    }
+
+    #[test]
+    fn with_tags() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        let desc = "Foo Bar";
+        let result = data.create_issue(&desc, vec!["foo".to_string()], None);
+        assert!(result.is_ok());
+        let issue_id = result.unwrap();
+        data.find_issue(&issue_id.0).unwrap();
+
+        let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
+        assert_eq!(actual_desc, desc);
+
+        let actual_tags = data.tags(&issue_id);
+        assert_eq!(actual_tags, vec!["foo".to_string(), "open".to_string()]);
+
+        let actual_milestone = data.milestone(&issue_id);
+        assert_eq!(actual_milestone, None);
+    }
 }

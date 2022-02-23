@@ -63,30 +63,6 @@ fn set_log_level(args: &Args) {
     log::debug!("Log Level is set to {}", log::max_level());
 }
 
-fn create(
-    data: &git_issue::DataSource,
-    description: &str,
-    tags: Vec<String>,
-    milestone: Option<String>,
-) -> Result<git_issue::Id, PosixError> {
-    let mark_text = "gi new mark";
-    git_issue::commit(&data.repo, "gi: Add issue", mark_text)?;
-    let id: git_issue::Id = git_issue::Id(data.repo.head().expect("HEAD ref exists"));
-    log::debug!("{} {:?}", mark_text, id);
-
-    data.new_description(&id, description)?;
-    log::debug!("gi new description {:?}", id);
-    for t in tags {
-        data.add_tag(&id, &t)?;
-        log::debug!("gi tag add {}", t);
-    }
-    if let Some(m) = milestone {
-        data.add_milestone(&id, &m)?;
-        log::debug!("gi milestone add {}", m);
-    }
-    Ok(id)
-}
-
 fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
     let empty: Vec<String> = vec![];
     let tags = args.tags.as_ref().unwrap_or(&empty).clone();
@@ -103,7 +79,7 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
     };
 
     data.start_transaction()?;
-    match create(&data, &description, tags, milestone) {
+    match data.create_issue(&description, tags, milestone) {
         Ok(id) => {
             let message = format!("gi({}): {}", &id.0[..8], &args.summary);
             #[cfg(not(feature = "strict-compatibility"))]
