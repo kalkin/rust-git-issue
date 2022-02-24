@@ -551,6 +551,15 @@ impl DataSource {
         })
     }
 
+    /// # Errors
+    ///
+    /// Will throw error on failure to read from description file
+    #[inline]
+    pub fn title(&self, id: &Id) -> Result<String, std::io::Error> {
+        let description = self.read(id, &Property::Description)?;
+        Ok(description.lines().next().unwrap_or("").to_owned())
+    }
+
     #[must_use]
     #[inline]
     pub fn tags(&self, id: &Id) -> Vec<String> {
