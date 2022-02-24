@@ -97,6 +97,24 @@ pub enum FindError {
     MultipleFound(Vec<Id>),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum InitError {
+    #[error("Git repository not found")]
+    GitRepoNotFound,
+    #[error("Not an issues repository (or any of the parent directories)")]
+    IssuesRepoNotFound,
+}
+
+impl From<InitError> for PosixError {
+    #[inline]
+    fn from(e: InitError) -> Self {
+        match e {
+            InitError::GitRepoNotFound => Self::new(128, format!("{}", e)),
+            InitError::IssuesRepoNotFound => Self::new(129, format!("{}", e)),
+        }
+    }
+}
+
 impl DataSource {
     #[must_use]
     #[inline]
@@ -145,15 +163,15 @@ impl DataSource {
     pub fn try_new(
         git_dir: &Option<String>,
         work_tree: &Option<String>,
-    ) -> Result<Self, PosixError> {
-        let issues_dir = Self::find_issues_dir();
+    ) -> Result<Self, InitError> {
+        let issues_dir = Self::find_issues_dir().ok_or(InitError::IssuesRepoNotFound)?;
         let repo = match Repository::from_args(
             Some(&issues_dir.to_string_lossy()),
             git_dir.as_deref(),
             work_tree.as_deref(),
         ) {
             Ok(repo) => Ok(repo),
-            Err(e) => Err(PosixError::new(4, format!("{}", e))),
+            Err(_) => Err(InitError::GitRepoNotFound),
         }?;
         Ok(Self {
             repo,
@@ -215,17 +233,18 @@ impl DataSource {
         }
     }
 
-    fn find_issues_dir() -> PathBuf {
+    fn find_issues_dir() -> Option<PathBuf> {
         let mut cur = std::env::current_dir().expect("Failed to get CWD");
         loop {
             let needle = cur.join(".issues");
             if needle.exists() {
-                return needle;
+                return Some(needle);
             }
-            cur = cur
-                .parent()
-                .expect("Failed to find any .issue dirs")
-                .to_path_buf();
+            if let Some(p) = cur.parent() {
+                cur = p.to_path_buf();
+            } else {
+                return None;
+            }
         }
     }
 

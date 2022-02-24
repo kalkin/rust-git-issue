@@ -82,8 +82,9 @@ fn main() {
     set_log_level(&args);
     let mut data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
-            log::error!(" error: {}", e);
-            std::process::exit(128);
+            let err: PosixError = e.into();
+            log::error!(" error: {}", err);
+            std::process::exit(err.code());
         }
         Ok(repo) => repo,
     };
