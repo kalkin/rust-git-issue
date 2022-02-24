@@ -1,18 +1,19 @@
 use std::path::{Path, PathBuf};
 
 use git_wrapper::x;
-use git_wrapper::{CommitError, Repository, StagingError};
+use git_wrapper::{CommitError, Repository, StagingError, StashingError};
 use posix_errors::PosixError;
 
 const E_EDITOR_KILLED: i32 = posix_errors::EINTR; // 4
 
 // Repository errors
 const E_REPO_EXIST: i32 = 128 + posix_errors::EEXIST; // 135
-const E_REPO_BAD: i32 = 128 + posix_errors::EBADF; // 137
 const E_REPO_BARE: i32 = 128 + posix_errors::EPROTOTYPE; // 169
 
 // Issue errors
 const E_ISSUES_DIR_EXIST: i32 = 128 + 16 + posix_errors::EEXIST; // 151
+
+const E_STASH_ERROR: i32 = 128 + 16 + 16 + posix_errors::EIO; // 165
 
 pub struct Transaction {
     start_sha: String,
@@ -131,6 +132,105 @@ pub enum InitError {
     IssuesRepoNotFound,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum WritePropertyError {
+    #[error("{0}")]
+    StagingError(#[from] StagingError),
+    #[error("{0}")]
+    IoError(#[from] std::io::Error),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum WriteError {
+    #[error("{0}")]
+    PropertyError(#[from] WritePropertyError),
+    #[error("{0}")]
+    CommitError(#[from] CommitError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum RollbackError {
+    #[error("{0}\nFailed to unstash changes.\nUse git stash pop to do it manually.")]
+    Unstash(String),
+    #[error("Failed to reset back to commit {0}.\nUse git reset --hard {0}.")]
+    Reset(String),
+    #[error("Failed to reset back to commit {0}.\nTo restore your data use:\n git reset --hard {0} && git stash pop")]
+    ResetUnstash(String),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FinishError {
+    #[error("{0}\nFailed to unstash changes.\nUse git stash pop to do it manually.")]
+    Unstash(String),
+    #[error("Failed to reset back to commit {0}.\nTo restore your repo to previous state, use:\n git reset --hard {0}")]
+    Reset(String),
+    #[error("Failed to reset back to commit {0}.\nTo restore your repo state, use:\n git reset --hard {0} && git stash pop")]
+    ResetUnstash(String),
+    #[error("Failed to merge issue changes with commit {0}.\nTo restore your repo to previous state, use:\n git reset --hard {0}")]
+    MergeUnstash(String),
+    #[error("Failed to reset back to commit {0}.\nTo restore your data repo to previous state:\n git reset --hard {0} && git stash pop")]
+    Merge(String),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum TransactionError {
+    #[error("Can not use bare git repository")]
+    BareRepository,
+    #[error("{0}")]
+    FinishError(#[from] FinishError),
+    #[error("Bug! Transaction not started!")]
+    NotStarted,
+    #[error("{0}")]
+    RollBackFailed(#[from] RollbackError),
+    #[error("{0}")]
+    StashingError(#[from] StashingError),
+}
+
+impl From<WritePropertyError> for PosixError {
+    #[inline]
+    fn from(e: WritePropertyError) -> Self {
+        match e {
+            WritePropertyError::IoError(err) => err.into(),
+            WritePropertyError::StagingError(err) => match err {
+                StagingError::BareRepository => {
+                    Self::new(E_REPO_BARE, "Can not use bare git repository".to_owned())
+                }
+                StagingError::FileDoesNotExist(p) => {
+                    Self::new(posix_errors::EDOOFUS, format!("Unstaged file {:?} Bug?", p))
+                }
+                StagingError::Failure(msg, code) => Self::new(code, msg),
+            },
+        }
+    }
+}
+impl From<WriteError> for PosixError {
+    #[inline]
+    fn from(e: WriteError) -> Self {
+        match e {
+            WriteError::PropertyError(err) => err.into(),
+            WriteError::CommitError(err) => match err {
+                CommitError::Failure(msg, code) => Self::new(code, msg),
+                CommitError::BareRepository => Self::new(E_REPO_BARE, "Bare repository".to_owned()),
+            },
+        }
+    }
+}
+impl From<TransactionError> for PosixError {
+    #[inline]
+    fn from(e: TransactionError) -> Self {
+        match e {
+            TransactionError::BareRepository => Self::new(E_REPO_BARE, format!("{}", e)),
+            TransactionError::NotStarted => Self::new(posix_errors::EDOOFUS, format!("{}", e)),
+            TransactionError::RollBackFailed(err) => {
+                Self::new(posix_errors::ENOTEXEC, format!("{}", err))
+            }
+            TransactionError::FinishError(err) => {
+                Self::new(posix_errors::ENOTEXEC, format!("{}", err))
+            }
+            TransactionError::StashingError(err) => Self::new(E_STASH_ERROR, format!("{}", err)),
+        }
+    }
+}
 impl From<InitError> for PosixError {
     #[inline]
     fn from(e: InitError) -> Self {
@@ -161,19 +261,11 @@ impl DataSource {
         description: &str,
         tags: Vec<String>,
         milestone: Option<String>,
-    ) -> Result<Id, PosixError> {
+    ) -> Result<Id, WriteError> {
         let mark_text = "gi new mark";
         let message = format!("gi: Add issue\n\n{}", mark_text);
-        match self.repo.commit_extended(&message, true, true) {
-            Ok(_) => Ok(()),
-            Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
-            Err(CommitError::BareRepository) => {
-                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
-            }
-        }?;
-        let git_head = self.repo.head().ok_or_else(|| {
-            PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
-        })?;
+        self.repo.commit_extended(&message, true, true)?;
+        let git_head = self.repo.head().expect("At this point HEAD should exist");
         let id: Id = Id(git_head);
         log::debug!("{} {:?}", mark_text, id);
 
@@ -301,8 +393,19 @@ impl DataSource {
     ///
     /// Will fail when `HEAD` can not be resolved
     #[inline]
-    pub fn start_transaction(&mut self) -> Result<(), PosixError> {
-        self.transaction = Some(start_transaction(&self.repo)?);
+    pub fn start_transaction(&mut self) -> Result<(), TransactionError> {
+        let start_sha = self.repo.head().ok_or(TransactionError::BareRepository)?;
+
+        let stash_before = !self.repo.is_clean();
+        let transaction = Transaction {
+            start_sha,
+            stash_before,
+        };
+        if stash_before {
+            log::debug!("Stashing repository changes");
+            self.repo.stash_almost_all("git-issue: Start Transaction")?;
+        }
+        self.transaction = Some(transaction);
         Ok(())
     }
 
@@ -312,8 +415,20 @@ impl DataSource {
     ///
     /// Throws an error when `git reset --hard` or poping stashed changes fails.
     #[inline]
-    pub fn rollback_transaction(mut self) -> Result<(), PosixError> {
-        rollback_transaction(&self.transaction.expect("Foo"), &self.repo)?;
+    pub fn rollback_transaction(mut self) -> Result<(), TransactionError> {
+        let transaction = self.transaction.ok_or(TransactionError::NotStarted)?;
+        x::reset_hard(&self.repo, &transaction.start_sha).map_err(|e| {
+            if transaction.stash_before {
+                RollbackError::ResetUnstash(e.message())
+            } else {
+                RollbackError::Reset(e.message())
+            }
+        })?;
+        if transaction.stash_before {
+            self.repo
+                .stash_pop()
+                .map_err(|e| RollbackError::Unstash(format!("{}", e)))?;
+        }
         self.transaction = None;
         Ok(())
     }
@@ -322,7 +437,7 @@ impl DataSource {
     ///
     /// Will throw error on failure to read from file
     #[inline]
-    pub fn read(&self, id: &Id, prop: &Property) -> Result<String, PosixError> {
+    pub fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
         let path = id.path(&self.issues_dir).join(prop.filename());
         Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
     }
@@ -331,7 +446,7 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn new_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
+    pub fn new_description(&self, id: &Id, text: &str) -> Result<(), WriteError> {
         let tag = CommitProperty::Tag {
             action: Action::Add,
             tag: "open".to_owned(),
@@ -344,12 +459,12 @@ impl DataSource {
         #[cfg(feature = "strict-compatibility")]
         {
             self.write_to_file(id, &tag)?;
-            self.write(id, &description)
+            self.write(id, &description).map_err(Into::into)
         }
         #[cfg(not(feature = "strict-compatibility"))]
         {
             self.write(id, &description)?;
-            self.write(id, &tag)
+            self.write(id, &tag).map_err(Into::into)
         }
     }
 
@@ -357,20 +472,20 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), PosixError> {
+    pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), WriteError> {
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
             id: id.0.clone(),
             description: text.to_owned(),
         };
-        self.write(id, &property)
+        self.write(id, &property).map_err(Into::into)
     }
 
     /// # Errors
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
+    pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), WriteError> {
         if self.tags(id).contains(&tag.to_owned()) {
             Ok(())
         } else {
@@ -378,7 +493,7 @@ impl DataSource {
                 action: Action::Add,
                 tag: tag.to_owned(),
             };
-            self.write(id, &property)
+            self.write(id, &property).map_err(Into::into)
         }
     }
 
@@ -386,13 +501,13 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), PosixError> {
+    pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), WriteError> {
         if self.tags(id).contains(&tag.to_owned()) {
             let property = CommitProperty::Tag {
                 action: Action::Remove,
                 tag: tag.to_owned(),
             };
-            self.write(id, &property)
+            self.write(id, &property).map_err(Into::into)
         } else {
             Ok(())
         }
@@ -402,24 +517,24 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
+    pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), WriteError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
             milestone: milestone.to_owned(),
         };
-        self.write(id, &property)
+        self.write(id, &property).map_err(Into::into)
     }
 
     /// # Errors
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), PosixError> {
+    pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), WriteError> {
         let property = CommitProperty::Milestone {
             action: Action::Add,
             milestone: milestone.to_owned(),
         };
-        self.write(id, &property)
+        self.write(id, &property).map_err(Into::into)
     }
     #[must_use]
     #[inline]
@@ -456,7 +571,7 @@ impl DataSource {
         .collect()
     }
 
-    fn write_to_file(&self, id: &Id, property: &CommitProperty) -> Result<(), PosixError> {
+    fn write_to_file(&self, id: &Id, property: &CommitProperty) -> Result<(), WritePropertyError> {
         let dir_path = id.path(&self.issues_dir);
         if !dir_path.exists() {
             std::fs::create_dir_all(&dir_path)?;
@@ -501,23 +616,13 @@ impl DataSource {
         };
 
         log::debug!("Staging {:?}", &path);
-        match self.repo.stage(path) {
-            Ok(_) => Ok(()),
-            Err(StagingError::BareRepository) => {
-                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
-            }
-            Err(StagingError::FileDoesNotExist(p)) => Err(PosixError::new(
-                posix_errors::ENOENT,
-                format!("File does not exists: {:?}", &p),
-            )),
-            Err(StagingError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
-        }
+        self.repo.stage(path).map_err(Into::into)
     }
 
     /// # Errors
     ///
     /// Will throw error on failure to do IO or commiting
-    fn write(&self, target_id: &Id, property: &CommitProperty) -> Result<(), PosixError> {
+    fn write(&self, target_id: &Id, property: &CommitProperty) -> Result<(), WriteError> {
         self.write_to_file(target_id, property)?;
 
         let message = match property {
@@ -553,30 +658,29 @@ impl DataSource {
             } => format!("gi: Remove milestone\n\ngi milestone remove {}", milestone),
         };
 
-        match self.repo.commit_extended(&message, false, true) {
-            Ok(_) => Ok(()),
-            Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
-            Err(CommitError::BareRepository) => {
-                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
-            }
-        }
+        self.repo
+            .commit_extended(&message, false, true)
+            .map_err(Into::into)
     }
 
     /// # Errors
     ///
     /// Will throw error on failure to commit
     #[inline]
-    pub fn finish_transaction(&mut self, message: &str) -> Result<(), PosixError> {
+    pub fn finish_transaction(&mut self, message: &str) -> Result<(), TransactionError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
         log::info!("Merging issue changes as not fast forward branch");
         #[cfg(not(feature = "strict-compatibility"))]
         {
-            let sha = self.repo.head().ok_or_else(|| {
-                PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
+            let sha = self.repo.head().ok_or(TransactionError::BareRepository)?;
+            x::reset_hard(&self.repo, &transaction.start_sha).map_err(|e| {
+                if transaction.stash_before {
+                    TransactionError::FinishError(FinishError::ResetUnstash(e.message()))
+                } else {
+                    TransactionError::FinishError(FinishError::Reset(e.message()))
+                }
             })?;
 
-            let start_sha = &transaction.start_sha;
-            x::reset_hard(&self.repo, start_sha)?;
             let mut cmd = self.repo.git();
             let out = cmd
                 .args(&["merge", "--no-ff", "-m", message, &sha])
@@ -585,12 +689,18 @@ impl DataSource {
 
             if !out.status.success() {
                 let output = String::from_utf8_lossy(&out.stderr).to_string();
-                let code = out.status.code().unwrap_or(1);
-                return Err(PosixError::new(code, output));
+                if transaction.stash_before {
+                    return Err(TransactionError::FinishError(FinishError::MergeUnstash(
+                        output,
+                    )));
+                }
+                return Err(TransactionError::FinishError(FinishError::Merge(output)));
             }
         }
         if transaction.stash_before {
-            stash_pop(&self.repo)?;
+            self.repo
+                .stash_pop()
+                .map_err(|e| FinishError::Unstash(format!("{}", e)))?;
         }
         self.transaction = None;
         Ok(())
@@ -623,66 +733,6 @@ const COMMENT: &str = "
 const README: &str = "This is an distributed issue tracking repository based on Git.
 Visit [git-issue](https://github.com/dspinellis/git-issue) for more information.
 ";
-
-/// # Errors
-///
-/// Will fail when `HEAD` can not be resolved
-fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
-    let start_sha = repo.head().ok_or_else(|| {
-        PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
-    })?;
-
-    let stash_before = !repo.is_clean();
-    let result = Transaction {
-        start_sha,
-        stash_before,
-    };
-    if stash_before {
-        log::debug!("Stashing repository changes");
-        let mut cmd = repo.git();
-        cmd.arg("stash");
-        if log::max_level() != log::Level::Trace {
-            cmd.arg("--quiet");
-        }
-        cmd.args(&["--include-untracked", "-m", "git-issue: Start Transaction"]);
-        let out = cmd.output().expect("Failed to execute git-stash(1)");
-        print!("{}", String::from_utf8_lossy(&out.stdout));
-        if !out.status.success() {
-            let message = String::from_utf8_lossy(&out.stderr).to_string();
-            let code = out.status.code().unwrap_or(1);
-            return Err(PosixError::new(code, message));
-        }
-    }
-    Ok(result)
-}
-
-fn stash_pop(repo: &Repository) -> Result<(), PosixError> {
-    let mut cmd = repo.git();
-    log::debug!("Popping stashed repository changes");
-    let out = cmd
-        .args(&["stash", "pop", "--quiet"])
-        .output()
-        .expect("Failed to execute git-stash(1)");
-
-    if !out.status.success() {
-        let message = String::from_utf8_lossy(&out.stderr).to_string();
-        let code = out.status.code().unwrap_or(1);
-        return Err(PosixError::new(code, message));
-    }
-    Ok(())
-}
-
-/// # Errors
-///
-/// Throws an error when any of the git commands fail
-fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<(), PosixError> {
-    x::reset_hard(repo, &transaction.start_sha)?;
-    if transaction.stash_before {
-        stash_pop(repo)?;
-    }
-
-    Ok(())
-}
 
 #[must_use]
 #[inline]

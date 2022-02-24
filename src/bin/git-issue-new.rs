@@ -88,10 +88,10 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
             Ok(id)
         }
         Err(e) => {
-            log::error!("{}", e.message());
+            log::error!("{}", e);
             log::warn!("Rolling back transaction");
             data.rollback_transaction()?;
-            Err(e)
+            Err(e.into())
         }
     }
 }

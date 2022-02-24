@@ -99,8 +99,9 @@ fn main() {
     };
 
     if let Err(e) = data.start_transaction() {
-        log::error!("{}", e);
-        std::process::exit(e.code());
+        let err = PosixError::from(e);
+        log::error!("{}", err);
+        std::process::exit(err.code());
     }
 
     let message = if args.remove {
@@ -120,7 +121,7 @@ fn main() {
         }
         "Removed tags"
     };
-    if let Err(e) = data.finish_transaction(message) {
+    if let Err(e) = data.finish_transaction(message).map_err(PosixError::from) {
         log::error!("{}", e);
         log::warn!("Rolling back transaction");
         data.rollback_transaction().expect("Rollback");
