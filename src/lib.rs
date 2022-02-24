@@ -19,8 +19,15 @@ pub struct Transaction {
     stash_before: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Id(pub String);
+
+impl std::fmt::Debug for Id {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl Id {
     #[must_use]
@@ -101,10 +108,19 @@ pub struct DataSource {
     pub transaction: Option<Transaction>,
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum FindError {
-    NotFound,
-    MultipleFound(Vec<Id>),
+    #[error("Not found issue with prefix {0}")]
+    NotFound(String),
+    #[error("Issue prefix {0} matched multiple issues: {1:?} ")]
+    MultipleFound(String, Vec<Id>),
+}
+
+impl From<FindError> for PosixError {
+    #[inline]
+    fn from(e: FindError) -> Self {
+        Self::new(git_wrapper::ENOENT, format!("{}", e))
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -203,51 +219,62 @@ impl DataSource {
     /// # Errors
     ///
     /// Returns an error if no issue matching id found or more than one issue are found.
-    ///
-    /// # Panics
-    ///
-    /// When only one char is specified but multiple issue prefixes match it
     #[inline]
-    pub fn find_issue(&self, id: &str) -> Result<Id, FindError> {
-        match id.len() {
+    pub fn find_issue(&self, needle: &str) -> Result<Id, FindError> {
+        match needle.len() {
             1 => {
-                let path = self.issues_dir.join("issues").join(&id);
+                let path = self.issues_dir.join("issues");
                 let dirs: Vec<PathBuf> = list_dirs(&path);
                 if dirs.len() == 1 {
                     let prefix = &dirs[0].file_name().expect("File name").to_str().expect("");
                     self.find_issue(prefix)
                 } else {
-                    todo!("Should return FindError::MultipleFound");
+                    let ids: Vec<Id> = dirs
+                        .into_iter()
+                        .flat_map(|p: PathBuf| {
+                            list_dirs(&p).iter().map(Id::from).collect::<Vec<Id>>()
+                        })
+                        .collect();
+                    Err(FindError::MultipleFound(needle.to_owned(), ids))
                 }
             }
             2 => {
-                let path = self.issues_dir.join("issues").join(&id);
+                let path = self.issues_dir.join("issues").join(&needle);
                 if path.exists() {
                     let dirs: Vec<PathBuf> = list_dirs(&path);
-                    if dirs.len() == 1 {
-                        Ok(Id::from(&dirs[0]))
-                    } else {
-                        let ids = dirs.iter().map(Id::from).collect();
-                        Err(FindError::MultipleFound(ids))
+                    match dirs.len() {
+                        0 => Err(FindError::NotFound(needle.to_owned())),
+                        1 => Ok(Id::from(&dirs[0])),
+                        _ => {
+                            let ids = dirs.iter().map(Id::from).collect();
+                            Err(FindError::MultipleFound(needle.to_owned(), ids))
+                        }
                     }
                 } else {
-                    Err(FindError::NotFound)
+                    Err(FindError::NotFound(needle.to_owned()))
                 }
             }
             _ => {
                 {
-                    let path = self.issues_dir.join("issues").join(&id[..2]).join(&id[2..]);
+                    let path = self
+                        .issues_dir
+                        .join("issues")
+                        .join(&needle[..2])
+                        .join(&needle[2..]);
                     if path.exists() {
-                        return Ok(Id(id.to_owned()));
+                        return Ok(Id(needle.to_owned()));
                     }
                 }
-                let path = self.issues_dir.join("issues").join(&id[..2]);
-                let dirs: Vec<PathBuf> = list_dirs(&path);
-                if dirs.len() == 1 {
-                    Ok(Id::from(&dirs[0]))
-                } else {
-                    let ids = dirs.iter().map(Id::from).collect();
-                    Err(FindError::MultipleFound(ids))
+                let path = self.issues_dir.join("issues").join(&needle[..2]);
+                let ids: Vec<Id> = list_dirs(&path)
+                    .iter()
+                    .map(Id::from)
+                    .filter(|id| id.0.starts_with(needle))
+                    .collect();
+                match ids.len() {
+                    0 => Err(FindError::NotFound(needle.to_owned())),
+                    1 => Ok(ids[0].clone()),
+                    _ => Err(FindError::MultipleFound(needle.to_owned(), ids)),
                 }
             }
         }
@@ -769,6 +796,9 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
 }
 
 fn list_dirs(path: &Path) -> Vec<PathBuf> {
+    if !path.exists() {
+        return vec![];
+    }
     let paths: Vec<PathBuf> = path
         .read_dir()
         .expect("Directory")

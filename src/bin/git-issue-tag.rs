@@ -88,11 +88,21 @@ fn main() {
         }
         Ok(repo) => repo,
     };
+
+    let id = match data.find_issue(&args.issue_id) {
+        Err(e) => {
+            let err = PosixError::from(e);
+            log::error!("{}", err);
+            std::process::exit(err.code());
+        }
+        Ok(id) => id,
+    };
+
     if let Err(e) = data.start_transaction() {
         log::error!("{}", e);
         std::process::exit(e.code());
     }
-    let id = data.find_issue(&args.issue_id).unwrap();
+
     let message = if args.remove {
         if let Err(e) = remove_tags(&data, &id, args.tags) {
             log::error!("{}", e);
