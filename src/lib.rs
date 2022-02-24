@@ -2,7 +2,17 @@ use std::path::{Path, PathBuf};
 
 use git_wrapper::x;
 use git_wrapper::{CommitError, Repository, StagingError};
-use posix_errors::{PosixError, EEXIST};
+use posix_errors::PosixError;
+
+const E_EDITOR_KILLED: i32 = posix_errors::EINTR; // 4
+
+// Repository errors
+const E_REPO_EXIST: i32 = 128 + posix_errors::EEXIST; // 135
+const E_REPO_BAD: i32 = 128 + posix_errors::EBADF; // 137
+const E_REPO_BARE: i32 = 128 + posix_errors::EPROTOTYPE; // 169
+
+// Issue errors
+const E_ISSUES_DIR_EXIST: i32 = 128 + 16 + posix_errors::EEXIST; // 151
 
 pub struct Transaction {
     start_sha: String,
@@ -109,8 +119,8 @@ impl From<InitError> for PosixError {
     #[inline]
     fn from(e: InitError) -> Self {
         match e {
-            InitError::GitRepoNotFound => Self::new(128, format!("{}", e)),
-            InitError::IssuesRepoNotFound => Self::new(129, format!("{}", e)),
+            InitError::GitRepoNotFound => Self::new(E_REPO_EXIST, format!("{}", e)),
+            InitError::IssuesRepoNotFound => Self::new(E_ISSUES_DIR_EXIST, format!("{}", e)),
         }
     }
 }
@@ -138,8 +148,17 @@ impl DataSource {
     ) -> Result<Id, PosixError> {
         let mark_text = "gi new mark";
         let message = format!("gi: Add issue\n\n{}", mark_text);
-        self.repo.commit_extended(&message, true, true)?;
-        let id: Id = Id(self.repo.head().expect("HEAD ref exists"));
+        match self.repo.commit_extended(&message, true, true) {
+            Ok(_) => Ok(()),
+            Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
+            Err(CommitError::BareRepository) => {
+                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
+            }
+        }?;
+        let git_head = self.repo.head().ok_or_else(|| {
+            PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
+        })?;
+        let id: Id = Id(git_head);
         log::debug!("{} {:?}", mark_text, id);
 
         self.new_description(&id, description)?;
@@ -458,10 +477,10 @@ impl DataSource {
         match self.repo.stage(path) {
             Ok(_) => Ok(()),
             Err(StagingError::BareRepository) => {
-                Err(PosixError::new(128, "Bare repository".to_owned()))
+                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
             }
             Err(StagingError::FileDoesNotExist(p)) => Err(PosixError::new(
-                128,
+                posix_errors::ENOENT,
                 format!("File does not exists: {:?}", &p),
             )),
             Err(StagingError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
@@ -511,7 +530,7 @@ impl DataSource {
             Ok(_) => Ok(()),
             Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
             Err(CommitError::BareRepository) => {
-                Err(PosixError::new(128, "Bare repository".to_owned()))
+                Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
             }
         }
     }
@@ -525,10 +544,9 @@ impl DataSource {
         log::info!("Merging issue changes as not fast forward branch");
         #[cfg(not(feature = "strict-compatibility"))]
         {
-            let sha = self
-                .repo
-                .head()
-                .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
+            let sha = self.repo.head().ok_or_else(|| {
+                PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
+            })?;
 
             let start_sha = &transaction.start_sha;
             x::reset_hard(&self.repo, start_sha)?;
@@ -583,9 +601,9 @@ Visit [git-issue](https://github.com/dspinellis/git-issue) for more information.
 ///
 /// Will fail when `HEAD` can not be resolved
 fn start_transaction(repo: &Repository) -> Result<Transaction, PosixError> {
-    let start_sha = repo
-        .head()
-        .ok_or_else(|| PosixError::new(2, "Failed to resolve HEAD".to_owned()))?;
+    let start_sha = repo.head().ok_or_else(|| {
+        PosixError::new(E_REPO_BAD, "Failed to resolve HEAD for git repo".to_owned())
+    })?;
 
     let stash_before = !repo.is_clean();
     let result = Transaction {
@@ -657,7 +675,7 @@ pub fn create(path: &Path, existing: bool) -> Result<(), PosixError> {
     let issues_dir = path.join(".issues");
     if issues_dir.exists() {
         return Err(PosixError::new(
-            EEXIST,
+            posix_errors::EEXIST,
             "An .issues directory is already present".to_owned(),
         ));
     }
@@ -698,8 +716,13 @@ pub fn create(path: &Path, existing: bool) -> Result<(), PosixError> {
     repo.stage(&readme)?;
 
     let message = "gi: Initialize issues repository\n\ngi init";
-    repo.commit_extended(message, false, false)
-        .map_err(Into::into)
+    match repo.commit_extended(message, false, false) {
+        Ok(_) => Ok(()),
+        Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
+        Err(CommitError::BareRepository) => {
+            Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
+        }
+    }
 }
 
 /// # Errors
@@ -723,7 +746,7 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
         .code()
     {
         None => Err(PosixError::new(
-            129,
+            E_EDITOR_KILLED,
             "Process terminated by signal".to_owned(),
         )),
         Some(0) => {
