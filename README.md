@@ -8,7 +8,8 @@ Current goal is to make it a drop in replacement.
 
 ## Differences
 
-- `new` accepts multiple tags with `-t, --tags`
+- `new` accepts multiple tags with `-t, --tags` and a milestone with `-m`,
+  `--milestone`
 - [ ] `new` creates the issue in branch later merged with `--no-ff` this should
   be a configurable option.
 
@@ -16,14 +17,14 @@ Current goal is to make it a drop in replacement.
 
 - Start an issue repository
   - [ ] `clone` Clone the specified remote repository.
-  - [ ] `init` Create a new issues repository in the current directory.
+  - [x] `init` Create a new issues repository in the current directory.
 
 - Work with an issue
   - [x] `new` Create a new open issue
   - [ ] `show` Show specified issue (and its comments with `-c`).
   - [ ] `comment` Add an issue comment.
   - [ ] `edit` Edit the specified issue's (or comment's with `-c`) description
-  - [ ] `tag` Add (or remove with `-r`) a tag.
+  - [x] `tag` Add (or remove with `-r`) a tag.
   - [ ] `milestone` Edit issue's milestone.
   - [ ] `weight` Edit issue's weight.
   - [ ] `duedate` Edit issue's due date.
@@ -32,7 +33,7 @@ Current goal is to make it a drop in replacement.
   - [ ] `assign` Assign (or remove `-r`) an issue to a person.
   - [ ] `attach` Attach (or remove with `-r`) a file to an issue.
   - [ ] `watcher` Add (or remove with `-r`) an issue watcher.
-  - [ ] `close` Remove the open tag, add the closed tag
+  - [x] `close` Remove the open tag, add the closed tag
 
 - Show multiple issues
   - [ ] `list` List open issues (or all with -a).
