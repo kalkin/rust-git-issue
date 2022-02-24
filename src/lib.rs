@@ -137,7 +137,8 @@ impl DataSource {
         milestone: Option<String>,
     ) -> Result<Id, PosixError> {
         let mark_text = "gi new mark";
-        commit(&self.repo, "gi: Add issue", mark_text)?;
+        let message = format!("gi: Add issue\n\n{}", mark_text);
+        self.repo.commit_extended(&message, true, true)?;
         let id: Id = Id(self.repo.head().expect("HEAD ref exists"));
         log::debug!("{} {:?}", mark_text, id);
 
@@ -506,7 +507,7 @@ impl DataSource {
             } => format!("gi: Remove milestone\n\ngi milestone remove {}", milestone),
         };
 
-        match self.repo.commit(&message) {
+        match self.repo.commit_extended(&message, false, true) {
             Ok(_) => Ok(()),
             Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
             Err(CommitError::BareRepository) => {
@@ -638,32 +639,6 @@ fn rollback_transaction(transaction: &Transaction, repo: &Repository) -> Result<
     Ok(())
 }
 
-/// # Errors
-///
-/// Throws an error when it fails to commit
-#[inline]
-pub fn commit(repo: &Repository, subject: &str, body: &str) -> Result<(), PosixError> {
-    let message = format!("{}\n\n{}", subject, body);
-    let mut cmd = repo.git();
-    let out = cmd
-        .args(&[
-            "commit",
-            "--allow-empty",
-            "--no-verify",
-            "-q",
-            "-m",
-            &message,
-        ])
-        .output()
-        .expect("Failed to execute git-commit(1)");
-    if !out.status.success() {
-        let output = String::from_utf8_lossy(&out.stderr).to_string();
-        let code = out.status.code().unwrap_or(1);
-        return Err(PosixError::new(code, output));
-    }
-    Ok(())
-}
-
 #[must_use]
 #[inline]
 pub fn read_template(repo: &Repository, template: &str) -> Option<String> {
@@ -722,7 +697,9 @@ pub fn create(path: &Path, existing: bool) -> Result<(), PosixError> {
     std::fs::write(&readme, README)?;
     repo.stage(&readme)?;
 
-    commit(&repo, "gi: Initialize issues repository", "gi init")
+    let message = "gi: Initialize issues repository\n\ngi init";
+    repo.commit_extended(message, false, false)
+        .map_err(Into::into)
 }
 
 /// # Errors
@@ -847,7 +824,8 @@ mod create_repo {
         assert!(std::fs::create_dir(tmp.join(".issues")).is_ok());
         eprintln!("Created dir");
         let result = crate::create(tmp, false);
-        assert!(!result.is_ok());
+        let msg = format!("{:?}", result);
+        assert!(!result.is_ok(), "{}", msg);
     }
 
     #[test]
@@ -855,7 +833,8 @@ mod create_repo {
         let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
         let tmp = tmp_dir.path();
         let result = crate::create(tmp, false);
-        assert!(result.is_ok());
+        let msg = format!("{:?}", result);
+        assert!(result.is_ok(), "{}", msg);
     }
 }
 #[cfg(test)]
