@@ -241,6 +241,17 @@ impl From<InitError> for PosixError {
     }
 }
 
+impl TryFrom<&Path> for DataSource {
+    type Error = InitError;
+    #[inline]
+    fn try_from(p: &Path) -> Result<Self, Self::Error> {
+        let issues_dir = Self::find_issues_dir(p).ok_or(InitError::IssuesRepoNotFound)?;
+        let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None)
+            .map_err(|_err| InitError::GitRepoNotFound)?;
+        Ok(Self::new(issues_dir, repo))
+    }
+}
+
 impl DataSource {
     #[must_use]
     #[inline]
@@ -292,7 +303,8 @@ impl DataSource {
         git_dir: &Option<String>,
         work_tree: &Option<String>,
     ) -> Result<Self, InitError> {
-        let issues_dir = Self::find_issues_dir().ok_or(InitError::IssuesRepoNotFound)?;
+        let path = std::env::current_dir().expect("Failed to get CWD");
+        let issues_dir = Self::find_issues_dir(&path).ok_or(InitError::IssuesRepoNotFound)?;
         let repo = match Repository::from_args(
             Some(&issues_dir.to_string_lossy()),
             git_dir.as_deref(),
@@ -372,15 +384,15 @@ impl DataSource {
         }
     }
 
-    fn find_issues_dir() -> Option<PathBuf> {
-        let mut cur = std::env::current_dir().expect("Failed to get CWD");
+    fn find_issues_dir(p: &Path) -> Option<PathBuf> {
+        let mut cur = p.to_path_buf();
         loop {
             let needle = cur.join(".issues");
             if needle.exists() {
                 return Some(needle);
             }
-            if let Some(p) = cur.parent() {
-                cur = p.to_path_buf();
+            if let Some(parent) = cur.parent() {
+                cur = parent.to_path_buf();
             } else {
                 return None;
             }
@@ -952,9 +964,7 @@ mod create_repo {
 #[cfg(test)]
 fn test_source(tmp: &Path) -> DataSource {
     assert!(create(tmp, false).is_ok(), "Create issue repository");
-    let issues_dir = tmp.join(".issues");
-    let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None).unwrap();
-    DataSource::new(issues_dir.to_path_buf(), repo)
+    DataSource::try_from(tmp).unwrap()
 }
 
 #[cfg(test)]

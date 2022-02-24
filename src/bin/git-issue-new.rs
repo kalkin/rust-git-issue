@@ -2,7 +2,7 @@ use clap::Parser;
 
 use posix_errors::PosixError;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 #[clap(
     author,
     version,
@@ -47,6 +47,7 @@ struct Args {
     quiet: bool,
 }
 
+#[cfg(not(tarpaulin_include))]
 fn set_log_level(args: &Args) {
     let log_level = if args.quiet {
         log::Level::Error
@@ -96,6 +97,7 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
     set_log_level(&args);
@@ -109,5 +111,113 @@ fn main() {
     match execute(&args, data) {
         Ok(id) => println!("Added issue {}: {}", &id.0[..8], args.summary),
         Err(e) => std::process::exit(e.code()),
+    }
+}
+
+#[cfg(test)]
+mod cmd_new {
+
+    use git_issue::{DataSource, Id};
+    use std::path::Path;
+
+    const SUMMARY: &str = "New Issue";
+
+    fn execute_new(args: &crate::Args, tmp: &Path) -> Id {
+        let data = DataSource::try_from(tmp).unwrap();
+        let result = crate::execute(&args, data);
+        result.expect("Execution successful")
+    }
+
+    #[test]
+    fn only_message() {
+        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp = tmp_dir.path();
+        git_issue::create(tmp, false).unwrap();
+
+        let id = {
+            let mut args = crate::Args::default();
+            args.summary = SUMMARY.to_owned();
+            execute_new(&args, tmp)
+        };
+
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let actual = data.title(&id).unwrap();
+            let expected = SUMMARY.to_owned();
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.tags(&id);
+            let expected = vec!["open".to_string()];
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.milestone(&id);
+            assert!(actual.is_none(), "Expected no milestone");
+        }
+    }
+
+    #[test]
+    fn with_tags() {
+        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp = tmp_dir.path();
+        git_issue::create(tmp, false).unwrap();
+        let tags = vec!["foo".to_string(), "bar".to_string()];
+
+        let id = {
+            let mut args = crate::Args::default();
+            args.summary = SUMMARY.to_owned();
+            args.tags = Some(tags.clone());
+
+            execute_new(&args, tmp)
+        };
+
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let actual = data.title(&id).unwrap();
+            let expected = SUMMARY.to_owned();
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.tags(&id);
+            let expected = vec!["bar".to_string(), "foo".to_string(), "open".to_string()];
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.milestone(&id);
+            assert!(actual.is_none(), "Expected no milestone");
+        }
+    }
+
+    #[test]
+    fn with_milestone() {
+        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp = tmp_dir.path();
+        git_issue::create(tmp, false).unwrap();
+        let milestone = "World Domination!";
+
+        let id = {
+            let mut args = crate::Args::default();
+            args.summary = SUMMARY.to_owned();
+            args.milestone = Some(milestone.to_owned());
+
+            execute_new(&args, tmp)
+        };
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let actual = data.title(&id).unwrap();
+            let expected = SUMMARY.to_owned();
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.tags(&id);
+            let expected = vec!["open".to_string()];
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = data.milestone(&id).unwrap();
+            let expected = milestone.to_string();
+            assert_eq!(actual, expected);
+        }
     }
 }
