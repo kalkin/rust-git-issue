@@ -2,7 +2,7 @@ use clap::Parser;
 
 use posix_errors::PosixError;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, logflag::LogFromArgs)]
 #[clap(
     author,
     version,
@@ -39,21 +39,6 @@ struct Args {
     quiet: bool,
 }
 
-fn set_log_level(args: &Args) {
-    let log_level = if args.quiet {
-        log::Level::Error
-    } else if args.verbose == 0 {
-        log::Level::Warn
-    } else if args.verbose == 1 {
-        log::Level::Info
-    } else if args.verbose == 2 {
-        log::Level::Debug
-    } else {
-        log::Level::Trace
-    };
-    simple_logger::init_with_level(log_level).unwrap();
-    log::debug!("Log Level is set to {}", log::max_level());
-}
 fn add_tags(
     data: &git_issue::DataSource,
     id: &git_issue::Id,

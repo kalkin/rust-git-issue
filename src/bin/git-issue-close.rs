@@ -3,7 +3,7 @@ use posix_errors::PosixError;
 
 use git_issue::{DataSource, FindError, Id};
 
-#[derive(Parser)]
+#[derive(Parser, logflag::LogFromArgs)]
 #[clap(
     author,
     version,
@@ -43,22 +43,6 @@ fn close_issues(data: &DataSource, ids: &[Id]) -> Result<(), PosixError> {
         println!("Closed issue {}: {}", &id.0[..8], data.title(id).unwrap());
     }
     Ok(())
-}
-
-fn set_log_level(args: &Args) {
-    let log_level = if args.quiet {
-        log::Level::Error
-    } else if args.verbose == 0 {
-        log::Level::Warn
-    } else if args.verbose == 1 {
-        log::Level::Info
-    } else if args.verbose == 2 {
-        log::Level::Debug
-    } else {
-        log::Level::Trace
-    };
-    simple_logger::init_with_level(log_level).unwrap();
-    log::debug!("Log Level is set to {}", log::max_level());
 }
 
 fn main() {

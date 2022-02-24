@@ -7,7 +7,7 @@ use posix_errors::PosixError;
 
 use git_issue::DataSource;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, logflag::LogFromArgs)]
 #[clap(
     author,
     version,
@@ -18,6 +18,20 @@ use git_issue::DataSource;
 struct Args {
     #[clap(short, long, long_help = "Fix validation errors")]
     fix: bool,
+    #[clap(
+        short,
+        long,
+        parse(from_occurrences),
+        long_help = "Log level up to -vvv"
+    )]
+    verbose: usize,
+    #[clap(
+        short,
+        long,
+        parse(from_flag),
+        long_help = "Only print errors (Overrides -v)"
+    )]
+    quiet: bool,
 }
 
 fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> {
