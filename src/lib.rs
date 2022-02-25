@@ -590,6 +590,17 @@ impl DataSource {
     }
 }
 
+impl TryFrom<&Path> for DataSource {
+    type Error = InitError;
+    #[inline]
+    fn try_from(p: &Path) -> Result<Self, Self::Error> {
+        let issues_dir = Self::find_issues_dir(p).ok_or(InitError::IssuesRepoNotFound)?;
+        let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None)
+            .map_err(|_err| InitError::GitRepoNotFound)?;
+        Ok(Self::new(issues_dir, repo))
+    }
+}
+
 const DESCRIPTION: &str = "
 
 # Start with a one-line summary of the issue.  Leave a blank line and

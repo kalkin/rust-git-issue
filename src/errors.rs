@@ -1,9 +1,7 @@
-use std::path::Path;
-
-use git_wrapper::{CommitError, Repository, StagingError, StashingError};
+use git_wrapper::{CommitError, StagingError, StashingError};
 use posix_errors::PosixError;
 
-use crate::{DataSource, Id, E_ISSUES_DIR_EXIST, E_REPO_BARE, E_REPO_EXIST, E_STASH_ERROR};
+use crate::{Id, E_ISSUES_DIR_EXIST, E_REPO_BARE, E_REPO_EXIST, E_STASH_ERROR};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FindError {
@@ -134,16 +132,5 @@ impl From<InitError> for PosixError {
             InitError::GitRepoNotFound => Self::new(E_REPO_EXIST, format!("{}", e)),
             InitError::IssuesRepoNotFound => Self::new(E_ISSUES_DIR_EXIST, format!("{}", e)),
         }
-    }
-}
-
-impl TryFrom<&Path> for DataSource {
-    type Error = InitError;
-    #[inline]
-    fn try_from(p: &Path) -> Result<Self, Self::Error> {
-        let issues_dir = Self::find_issues_dir(p).ok_or(InitError::IssuesRepoNotFound)?;
-        let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None)
-            .map_err(|_err| InitError::GitRepoNotFound)?;
-        Ok(Self::new(issues_dir, repo))
     }
 }
