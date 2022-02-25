@@ -297,6 +297,7 @@ impl DataSource {
             }
         })?;
         if transaction.stash_before {
+            log::debug!("Unstashing repository changes");
             self.repo
                 .stash_pop()
                 .map_err(|e| RollbackError::Unstash(format!("{}", e)))?;
@@ -579,6 +580,7 @@ impl DataSource {
             }
         }
         if transaction.stash_before {
+            log::debug!("Unstashing repository changes");
             self.repo
                 .stash_pop()
                 .map_err(|e| FinishError::Unstash(format!("{}", e)))?;
