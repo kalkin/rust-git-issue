@@ -44,32 +44,41 @@ struct Args {
 fn add_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
     let short_id = &id.0[..8];
     let cur_tags = data.tags(id);
+    let mut applied: Vec<&str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
         if cur_tags.contains(tag) {
-            log::warn!("Skipping tag {}. Already applied to {}.", tag, short_id);
+            log::warn!("Skipping tag {}. {} already tagged with it.", tag, short_id);
         } else {
             log::info!("Adding tag {} to {}", tag, short_id);
             data.add_tag(id, tag)?;
+            applied.push(tag);
         }
     }
 
-    Ok("Added tags".to_owned())
+    let word = if applied.len() > 1 { "tags" } else { "tag" };
+    let msg = format!("gi({}): Add {}: {}", short_id, word, applied.join(", "));
+    Ok(msg)
 }
 
 fn remove_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
     let short_id = &id.0[..8];
     let cur_tags = data.tags(id);
+    let mut applied: Vec<&str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
         if cur_tags.contains(tag) {
             log::info!("Removing tag {} from {}", tag, short_id);
             data.remove_tag(id, tag)?;
+            applied.push(tag);
         } else {
             log::warn!("Skipping tag {}. {} not tagged with it.", tag, short_id);
         }
     }
-    Ok("Removed tags".to_owned())
+
+    let word = if applied.len() > 1 { "tags" } else { "tag" };
+    let msg = format!("gi({}): Remove {}: {}", short_id, word, applied.join(", "));
+    Ok(msg)
 }
 
 fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
