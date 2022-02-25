@@ -2,6 +2,8 @@ use clap::Parser;
 
 use posix_errors::PosixError;
 
+use git_issue::{DataSource, Id};
+
 #[derive(Parser, Debug, logflag::LogFromArgs)]
 #[clap(
     author,
@@ -39,33 +41,64 @@ struct Args {
     quiet: bool,
 }
 
-fn add_tags(
-    data: &git_issue::DataSource,
-    id: &git_issue::Id,
-    tags: Vec<String>,
-) -> Result<(), PosixError> {
+fn add_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
+    let short_id = &id.0[..8];
+    let cur_tags = data.tags(id);
+
     for tag in tags {
-        data.add_tag(id, &tag)?;
+        if cur_tags.contains(tag) {
+            log::warn!("Skipping tag {}. Already applied to {}.", tag, short_id);
+        } else {
+            log::info!("Adding tag {} to {}", tag, short_id);
+            data.add_tag(id, tag)?;
+        }
     }
-    Ok(())
+
+    Ok("Added tags".to_owned())
 }
 
-fn remove_tags(
-    data: &git_issue::DataSource,
-    id: &git_issue::Id,
-    tags: Vec<String>,
-) -> Result<(), PosixError> {
+fn remove_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
+    let short_id = &id.0[..8];
+    let cur_tags = data.tags(id);
+
     for tag in tags {
-        log::info!("Removing tag {}", tag);
-        data.remove_tag(id, &tag)?;
+        if cur_tags.contains(tag) {
+            log::info!("Removing tag {} from {}", tag, short_id);
+            data.remove_tag(id, tag)?;
+        } else {
+            log::warn!("Skipping tag {}. {} not tagged with it.", tag, short_id);
+        }
     }
-    Ok(())
+    Ok("Removed tags".to_owned())
+}
+
+fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
+    let id = data.find_issue(&args.issue_id).map_err(PosixError::from)?;
+    log::info!("Starting transaction");
+    data.start_transaction().map_err(PosixError::from)?;
+
+    let result = if args.remove {
+        remove_tags(&data, &id, &args.tags)
+    } else {
+        add_tags(&data, &id, &args.tags)
+    };
+    match result {
+        Ok(message) => {
+            log::info!("Committing transaction");
+            data.finish_transaction(&message).map_err(PosixError::from)
+        }
+        Err(e) => {
+            log::warn!("An error happend. Rolling back transaction.");
+            data.rollback_transaction()?;
+            Err(e)
+        }
+    }
 }
 
 fn main() {
     let args = Args::parse();
     set_log_level(&args);
-    let mut data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
+    let data = match DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             let err: PosixError = e.into();
             log::error!(" error: {}", err);
@@ -74,42 +107,8 @@ fn main() {
         Ok(repo) => repo,
     };
 
-    let id = match data.find_issue(&args.issue_id) {
-        Err(e) => {
-            let err = PosixError::from(e);
-            log::error!("{}", err);
-            std::process::exit(err.code());
-        }
-        Ok(id) => id,
-    };
-
-    if let Err(e) = data.start_transaction() {
-        let err = PosixError::from(e);
-        log::error!("{}", err);
-        std::process::exit(err.code());
-    }
-
-    let message = if args.remove {
-        if let Err(e) = remove_tags(&data, &id, args.tags) {
-            log::error!("{}", e);
-            log::warn!("Rolling back transaction");
-            data.rollback_transaction().expect("Rollback");
-            std::process::exit(e.code());
-        }
-        "Added tags"
-    } else {
-        if let Err(e) = add_tags(&data, &id, args.tags) {
-            log::error!("{}", e);
-            log::warn!("Rolling back transaction");
-            data.rollback_transaction().expect("Rollback");
-            std::process::exit(e.code());
-        }
-        "Removed tags"
-    };
-    if let Err(e) = data.finish_transaction(message).map_err(PosixError::from) {
+    if let Err(e) = execute(&args, data) {
         log::error!("{}", e);
-        log::warn!("Rolling back transaction");
-        data.rollback_transaction().expect("Rollback");
         std::process::exit(e.code());
     }
 }
