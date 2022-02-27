@@ -3,7 +3,7 @@ use posix_errors::PosixError;
 
 use git_issue::{DataSource, FindError, Id};
 
-#[derive(Parser, logflag::LogFromArgs)]
+#[derive(Parser, Default, logflag::LogFromArgs)]
 #[clap(
     author,
     version,
@@ -98,5 +98,82 @@ fn main() {
     if let Err(e) = execute(&args, data) {
         log::error!("{}", e);
         std::process::exit(e.code());
+    }
+}
+
+#[cfg(test)]
+mod cmd_close {
+    use git_issue::{DataSource, Id};
+    use std::path::Path;
+
+    fn prepare(tmp_dir: &Path, tags: &[String]) -> Id {
+        git_issue::create(tmp_dir, false).unwrap();
+        let issues_dir = tmp_dir.join(".issues");
+        let data = DataSource::try_from(issues_dir.as_path()).unwrap();
+        let result = data.create_issue("Foo Bar", tags.to_vec(), None);
+        result.expect("Created new issue")
+    }
+
+    #[test]
+    fn single_issue() {
+        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &[]);
+
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_ids = vec![id.0.clone()];
+            assert!(crate::execute(&args, data).is_ok());
+        }
+
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+        }
+    }
+
+    #[test]
+    fn multiple_issue() {
+        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &[]);
+        let id2 = {
+            let issues_dir = tmp.join(".issues");
+            let data = DataSource::try_from(issues_dir.as_path()).unwrap();
+            let result = data.create_issue("Foo Bar 2", vec![], None);
+            result.expect("Created new issue")
+        };
+
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_ids = vec![id.0.clone(), id2.0.clone()];
+            assert!(crate::execute(&args, data).is_ok());
+        }
+
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+        }
+
+        {
+            let tags = data.tags(&id2);
+            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+        }
+    }
+
+    #[test]
+    fn non_existing_issue() {
+        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp = tmp_dir.path();
+        git_issue::create(tmp, false).unwrap();
+
+        let data = DataSource::try_from(tmp).unwrap();
+        let mut args = crate::Args::default();
+        args.issue_ids = vec!["123eaf".to_string()];
+        assert!(crate::execute(&args, data).is_err());
     }
 }
