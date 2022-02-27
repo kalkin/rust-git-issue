@@ -23,9 +23,10 @@ pub struct Transaction {
     stash_before: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Id(pub String);
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for Id {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -762,6 +763,24 @@ fn list_dirs(path: &Path) -> Vec<PathBuf> {
 
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+
+        // Find and cut the rest of the path
+        match &name[..name.len() - 3].rfind(':') {
+            Some(pos) => &name[pos + 1..name.len() - 3],
+            None => &name[..name.len() - 3],
+        }
+    }};
+}
+
+#[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mod test_find_issue {
     use crate::DataSource;
     #[test]
@@ -771,6 +790,23 @@ mod test_find_issue {
             .find_issue("2d9deaf1b8b146d7e3c4c92133532b314da3e350")
             .expect("Found issue");
         assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+    }
+
+    #[test]
+    fn by_one_char_multiple() {
+        let data = DataSource::try_new(&None, &None).unwrap();
+        let issue = data.find_issue("2");
+        assert!(issue.is_err());
+    }
+
+    #[test]
+    fn by_one_char() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        let issue_id = data.create_issue(&"Foo Bar", vec![], None).unwrap();
+        let needle = issue_id.0.chars().next().unwrap().to_string();
+        let issue = data.find_issue(&needle).expect("Found issue");
+        assert_eq!(issue_id, issue);
     }
 
     #[test]
@@ -788,29 +824,20 @@ mod test_find_issue {
     }
 
     #[test]
+    fn not_found() {
+        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let data = crate::test_source(tmp_dir.path());
+        assert!(data.find_issue(&"1").is_err());
+        assert!(data.find_issue(&"12").is_err());
+        assert!(data.find_issue(&"123423eaf").is_err());
+    }
+
+    #[test]
     fn short_id() {
         let data = DataSource::try_new(&None, &None).unwrap();
         let issue = data.find_issue("2d9deaf").expect("Found issue");
         assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }
-}
-
-#[cfg(test)]
-#[cfg(not(tarpaulin_include))]
-macro_rules! function {
-    () => {{
-        fn f() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        let name = type_name_of(f);
-
-        // Find and cut the rest of the path
-        match &name[..name.len() - 3].rfind(':') {
-            Some(pos) => &name[pos + 1..name.len() - 3],
-            None => &name[..name.len() - 3],
-        }
-    }};
 }
 
 #[cfg(test)]
