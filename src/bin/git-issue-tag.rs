@@ -4,7 +4,7 @@ use posix_errors::PosixError;
 
 use git_issue::{DataSource, Id};
 
-#[derive(Parser, Debug, logflag::LogFromArgs)]
+#[derive(Parser, Default, logflag::LogFromArgs)]
 #[clap(
     author,
     version,
@@ -104,6 +104,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
     set_log_level(&args);
@@ -119,5 +120,105 @@ fn main() {
     if let Err(e) = execute(&args, data) {
         log::error!("{}", e);
         std::process::exit(e.code());
+    }
+}
+
+#[cfg(test)]
+mod cmd_tag {
+    use git_issue::{DataSource, Id};
+    use std::path::Path;
+
+    fn prepare(tmp_dir: &Path, tags: &[String]) -> Id {
+        git_issue::create(tmp_dir, false).unwrap();
+        let issues_dir = tmp_dir.join(".issues");
+        let data = DataSource::try_from(issues_dir.as_path()).unwrap();
+        let result = data.create_issue("Foo Bar", tags.to_vec(), None);
+        result.expect("Created new issue")
+    }
+
+    #[test]
+    fn add_tag() {
+        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &[]);
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_id = id.0.clone();
+            args.tags = vec!["foo".to_string()];
+            assert!(crate::execute(&args, data).is_ok());
+        }
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(
+                tags,
+                ["foo".to_string(), "open".to_string()],
+                "Tags foo and open"
+            );
+        }
+    }
+
+    #[test]
+    fn add_duplicate_tag() {
+        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &["foo".to_string()]);
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_id = id.0.clone();
+            args.tags = vec!["foo".to_string()];
+            assert!(crate::execute(&args, data).is_ok());
+        }
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(
+                tags,
+                ["foo".to_string(), "open".to_string()],
+                "Still only tags foo and open"
+            );
+        }
+    }
+
+    #[test]
+    fn remove_tag() {
+        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &["foo".to_string()]);
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_id = id.0.clone();
+            args.tags = vec!["foo".to_string()];
+            args.remove = true;
+            assert!(crate::execute(&args, data).is_ok());
+        }
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(tags, ["open".to_string()], "Only tag open");
+        }
+    }
+
+    #[test]
+    fn remove_non_existing_tag() {
+        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp = tmp_dir.path();
+        let id = prepare(&tmp, &[]);
+        {
+            let data = DataSource::try_from(tmp).unwrap();
+            let mut args = crate::Args::default();
+            args.issue_id = id.0.clone();
+            args.tags = vec!["foo".to_string()];
+            args.remove = true;
+            assert!(crate::execute(&args, data).is_ok());
+        }
+        let data = DataSource::try_from(tmp).unwrap();
+        {
+            let tags = data.tags(&id);
+            assert_eq!(tags, ["open".to_string()], "Only tag open");
+        }
     }
 }
