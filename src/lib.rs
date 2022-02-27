@@ -443,6 +443,7 @@ impl DataSource {
             value
                 .as_ref()
                 .expect("already checked value")
+                .trim()
                 .lines()
                 .collect::<Vec<&str>>()
         } else {
