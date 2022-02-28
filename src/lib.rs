@@ -62,7 +62,7 @@ impl From<&PathBuf> for Id {
 }
 
 #[derive(Debug)]
-pub enum Property {
+enum Property {
     Description,
     Tags,
     Milestone(String),
@@ -86,7 +86,7 @@ enum ChangeAction {
 }
 
 #[derive(Debug)]
-pub enum Action {
+enum Action {
     Add,
     Remove,
 }
@@ -125,7 +125,7 @@ pub struct DataSource {
     pub repo: Repository,
     /// Path to `.issues` directory
     pub issues_dir: PathBuf,
-    pub transaction: Option<Transaction>,
+    transaction: Option<Transaction>,
 }
 
 impl DataSource {
@@ -327,7 +327,7 @@ impl DataSource {
     ///
     /// Will throw error on failure to read from file
     #[inline]
-    pub fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
+    fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
         let path = id.path(&self.issues_dir).join(prop.filename());
         Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
     }
