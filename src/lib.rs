@@ -1,3 +1,5 @@
+//! Library for manipulating a data in a git-issue(1) tracker
+
 use std::path::{Path, PathBuf};
 
 use git_wrapper::x;
@@ -7,23 +9,29 @@ use posix_errors::PosixError;
 mod errors;
 pub use crate::errors::*;
 
+/// `$EDITOR` was quit with error
 pub const E_EDITOR_KILLED: i32 = posix_errors::EINTR; // 4
 
 // Repository errors
+/// Repository already exists.
 pub const E_REPO_EXIST: i32 = 128 + posix_errors::EEXIST; // 135
+/// Bare Repository
 pub const E_REPO_BARE: i32 = 128 + posix_errors::EPROTOTYPE; // 169
 
-// Issue errors
+/// .issues directory missing
 pub const E_ISSUES_DIR_EXIST: i32 = 128 + 16 + posix_errors::EEXIST; // 151
 
+/// Stashing operation failed
 pub const E_STASH_ERROR: i32 = 128 + 16 + 16 + posix_errors::EIO; // 165
 
+/// Transaction struct
 #[derive(Debug)]
 pub struct Transaction {
     start_sha: String,
     stash_before: bool,
 }
 
+/// Issue id
 #[derive(Clone, PartialEq)]
 pub struct Id(pub String);
 
@@ -110,14 +118,18 @@ impl CommitProperty {
     }
 }
 
+/// Use this to manipulate your issues
 #[derive(Debug)]
 pub struct DataSource {
+    /// Git repository instance
     pub repo: Repository,
+    /// Path to `.issues` directory
     pub issues_dir: PathBuf,
     pub transaction: Option<Transaction>,
 }
 
 impl DataSource {
+    /// Create new `DataSource` instance
     #[must_use]
     #[inline]
     pub const fn new(issues_dir: PathBuf, repo: Repository) -> Self {
@@ -414,6 +426,8 @@ impl DataSource {
         };
         self.write(id, &property).map_err(Into::into)
     }
+
+    /// Returns milestone of an issue if set.
     #[must_use]
     #[inline]
     pub fn milestone(&self, id: &Id) -> Option<String> {
@@ -438,6 +452,7 @@ impl DataSource {
         Ok(description.lines().next().unwrap_or("").to_owned())
     }
 
+    /// Returns tags for an issue
     #[must_use]
     #[inline]
     pub fn tags(&self, id: &Id) -> Vec<String> {
@@ -634,6 +649,7 @@ const README: &str = "This is an distributed issue tracking repository based on 
 Visit [git-issue](https://github.com/dspinellis/git-issue) for more information.
 ";
 
+/// Read a template file from `.issues/.templates`
 #[must_use]
 #[inline]
 pub fn read_template(repo: &Repository, template: &str) -> Option<String> {

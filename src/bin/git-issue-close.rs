@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use clap::Parser;
 use posix_errors::PosixError;
 

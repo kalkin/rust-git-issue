@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use clap::Parser;
 
 #[derive(Parser, Debug, logflag::LogFromArgs)]
