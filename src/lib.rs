@@ -18,6 +18,7 @@ pub const E_ISSUES_DIR_EXIST: i32 = 128 + 16 + posix_errors::EEXIST; // 151
 
 pub const E_STASH_ERROR: i32 = 128 + 16 + 16 + posix_errors::EIO; // 165
 
+#[derive(Debug)]
 pub struct Transaction {
     start_sha: String,
     stash_before: bool,
@@ -52,6 +53,7 @@ impl From<&PathBuf> for Id {
     }
 }
 
+#[derive(Debug)]
 pub enum Property {
     Description,
     Tags,
@@ -75,6 +77,7 @@ enum ChangeAction {
     Edit,
 }
 
+#[derive(Debug)]
 pub enum Action {
     Add,
     Remove,
@@ -107,6 +110,7 @@ impl CommitProperty {
     }
 }
 
+#[derive(Debug)]
 pub struct DataSource {
     pub repo: Repository,
     pub issues_dir: PathBuf,
