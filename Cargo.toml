@@ -19,7 +19,6 @@ path = "src/lib.rs"
 
 [dependencies]
 clap = { version="^3.0.0", default-features=false, features=["std", "cargo", "derive"] }
-getset = "0.1.*"
 git-wrapper = "0.5.*"
 log = "^0.4"
 bkg-clap-log-flag = "^0.1.0"
