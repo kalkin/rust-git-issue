@@ -3,12 +3,13 @@ use std::fs;
 use std::path::Path;
 
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
 
 use git_issue::DataSource;
 
-#[derive(Parser, Debug, logflag::LogFromArgs)]
+#[derive(Parser)]
 #[clap(
     author,
     version,
@@ -19,20 +20,9 @@ use git_issue::DataSource;
 struct Args {
     #[clap(short, long, long_help = "Fix validation errors")]
     fix: bool,
-    #[clap(
-        short,
-        long,
-        parse(from_occurrences),
-        long_help = "Log level up to -vvv"
-    )]
-    verbose: usize,
-    #[clap(
-        short,
-        long,
-        parse(from_flag),
-        long_help = "Only print errors (Overrides -v)"
-    )]
-    quiet: bool,
+
+    #[clap(flatten)]
+    verbose: Verbosity<WarnLevel>,
 }
 
 fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> {
@@ -85,6 +75,7 @@ fn validate(data: &DataSource, fix: bool) -> Result<bool, PosixError> {
 
 fn main() {
     let args = Args::parse();
+    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
     let data = match DataSource::try_new(&None, &None) {
         Err(e) => {
             eprintln!(" error: {}", e);

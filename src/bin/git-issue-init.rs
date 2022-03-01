@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 
-#[derive(Parser, Debug, logflag::LogFromArgs)]
+#[derive(Parser)]
 #[clap(
     author,
     version,
@@ -13,25 +14,13 @@ struct Args {
     #[clap(short, long, long_help = "Use existing git repository")]
     existing: bool,
 
-    #[clap(
-        short,
-        long,
-        parse(from_occurrences),
-        long_help = "Log level up to -vvv"
-    )]
-    verbose: usize,
-    #[clap(
-        short,
-        long,
-        parse(from_flag),
-        long_help = "Only print errors (Overrides -v)"
-    )]
-    quiet: bool,
+    #[clap(flatten)]
+    verbose: Verbosity<WarnLevel>,
 }
 
 fn main() {
     let args = Args::parse();
-    set_log_level(&args);
+    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
     if let Err(e) = git_issue::create(&std::env::current_dir().expect("CWD"), args.existing) {
         std::process::exit(e.code());
     }

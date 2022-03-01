@@ -1,10 +1,11 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 use posix_errors::PosixError;
 
 use git_issue::{DataSource, FindError, Id};
 
-#[derive(Parser, Default, logflag::LogFromArgs)]
+#[derive(Parser)]
 #[clap(
     author,
     version,
@@ -21,20 +22,8 @@ struct Args {
     #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
     work_tree: Option<String>,
 
-    #[clap(
-        short,
-        long,
-        parse(from_occurrences),
-        long_help = "Log level up to -vvv"
-    )]
-    verbose: usize,
-    #[clap(
-        short,
-        long,
-        parse(from_flag),
-        long_help = "Only print errors (Overrides -v)"
-    )]
-    quiet: bool,
+    #[clap(flatten)]
+    verbose: Verbosity<WarnLevel>,
 }
 
 fn close_issues(data: &DataSource, ids: &[Id]) -> Result<(), PosixError> {
@@ -87,7 +76,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    set_log_level(&args);
+    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
     let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             log::error!(" error: {}", e);
@@ -104,6 +93,7 @@ fn main() {
 
 #[cfg(test)]
 mod cmd_close {
+    use clap::Parser;
     use git_issue::{DataSource, Id};
     use std::path::Path;
 
@@ -123,8 +113,8 @@ mod cmd_close {
 
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_ids = vec![id.0.clone()];
+            let args =
+                Parser::try_parse_from(&["git-issue-close", &id.0]).expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
 
@@ -149,8 +139,8 @@ mod cmd_close {
 
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_ids = vec![id.0.clone(), id2.0.clone()];
+            let args = Parser::try_parse_from(&["git-issue-close", &id.0, &id2.0])
+                .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
 
@@ -173,8 +163,8 @@ mod cmd_close {
         git_issue::create(tmp, false).unwrap();
 
         let data = DataSource::try_from(tmp).unwrap();
-        let mut args = crate::Args::default();
-        args.issue_ids = vec!["123eaf".to_string()];
+        let args =
+            Parser::try_parse_from(&["git-issue-close", "123eaf"]).expect("Parsed arguments");
         assert!(crate::execute(&args, data).is_err());
     }
 }

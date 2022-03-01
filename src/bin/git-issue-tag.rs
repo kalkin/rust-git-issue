@@ -1,11 +1,12 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
 
 use git_issue::{DataSource, Id};
 
-#[derive(Parser, Default, logflag::LogFromArgs)]
+#[derive(Parser)]
 #[clap(
     author,
     version,
@@ -26,20 +27,8 @@ struct Args {
     #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
     work_tree: Option<String>,
 
-    #[clap(
-        short,
-        long,
-        parse(from_occurrences),
-        long_help = "Log level up to -vvv"
-    )]
-    verbose: usize,
-    #[clap(
-        short,
-        long,
-        parse(from_flag),
-        long_help = "Only print errors (Overrides -v)"
-    )]
-    quiet: bool,
+    #[clap(flatten)]
+    verbose: Verbosity<WarnLevel>,
 }
 
 fn add_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
@@ -108,7 +97,8 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    set_log_level(&args);
+    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    log::debug!("Log Level is set to {}", log::max_level());
     let data = match DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             let err: PosixError = e.into();
@@ -126,8 +116,11 @@ fn main() {
 
 #[cfg(test)]
 mod cmd_tag {
-    use git_issue::{DataSource, Id};
+    use clap::Parser;
+
     use std::path::Path;
+
+    use git_issue::{DataSource, Id};
 
     fn prepare(tmp_dir: &Path, tags: &[String]) -> Id {
         git_issue::create(tmp_dir, false).unwrap();
@@ -144,9 +137,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_id = id.0.clone();
-            args.tags = vec!["foo".to_string()];
+            let args =
+                Parser::try_parse_from(&["git-issue-tag", &id.0, "foo"]).expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();
@@ -167,9 +159,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_id = id.0.clone();
-            args.tags = vec!["foo".to_string()];
+            let args =
+                Parser::try_parse_from(&["git-issue-tag", &id.0, "foo"]).expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();
@@ -190,10 +181,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_id = id.0.clone();
-            args.tags = vec!["foo".to_string()];
-            args.remove = true;
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.0, "-r", "foo"])
+                .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();
@@ -210,10 +199,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let mut args = crate::Args::default();
-            args.issue_id = id.0.clone();
-            args.tags = vec!["foo".to_string()];
-            args.remove = true;
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.0, "-r", "foo"])
+                .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();

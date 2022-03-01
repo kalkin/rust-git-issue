@@ -1,9 +1,10 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
 
-#[derive(Parser, Debug, Default, logflag::LogFromArgs)]
+#[derive(Parser)]
 #[clap(
     author,
     version,
@@ -32,20 +33,8 @@ struct Args {
     #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
     work_tree: Option<String>,
 
-    #[clap(
-        short,
-        long,
-        parse(from_occurrences),
-        long_help = "Log level up to -vvv"
-    )]
-    verbose: usize,
-    #[clap(
-        short,
-        long,
-        parse(from_flag),
-        long_help = "Only print errors (Overrides -v)"
-    )]
-    quiet: bool,
+    #[clap(flatten)]
+    verbose: Verbosity<WarnLevel>,
 }
 
 fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
@@ -84,7 +73,7 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    set_log_level(&args);
+    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
     let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             log::error!(" error: {}", e);
@@ -100,7 +89,7 @@ fn main() {
 
 #[cfg(test)]
 mod cmd_new {
-
+    use clap::Parser;
     use git_issue::{DataSource, Id};
     use std::path::Path;
 
@@ -119,8 +108,8 @@ mod cmd_new {
         git_issue::create(tmp, false).unwrap();
 
         let id = {
-            let mut args = crate::Args::default();
-            args.summary = SUMMARY.to_owned();
+            let args =
+                Parser::try_parse_from(&["git-issue-new", "-s", SUMMARY]).expect("Parsed args");
             execute_new(&args, tmp)
         };
 
@@ -146,13 +135,18 @@ mod cmd_new {
         let tmp_dir = tempdir::TempDir::new("new").unwrap();
         let tmp = tmp_dir.path();
         git_issue::create(tmp, false).unwrap();
-        let tags = vec!["foo".to_string(), "bar".to_string()];
 
         let id = {
-            let mut args = crate::Args::default();
-            args.summary = SUMMARY.to_owned();
-            args.tags = Some(tags.clone());
-
+            let args = Parser::try_parse_from(&[
+                "git-issue-new",
+                "-s",
+                SUMMARY,
+                "-t",
+                "foo",
+                "--tag",
+                "bar",
+            ])
+            .expect("Parsed args");
             execute_new(&args, tmp)
         };
 
@@ -181,10 +175,8 @@ mod cmd_new {
         let milestone = "World Domination!";
 
         let id = {
-            let mut args = crate::Args::default();
-            args.summary = SUMMARY.to_owned();
-            args.milestone = Some(milestone.to_owned());
-
+            let args = Parser::try_parse_from(&["git-issue-new", "-s", SUMMARY, "-m", milestone])
+                .expect("Parsed args");
             execute_new(&args, tmp)
         };
         let data = DataSource::try_from(tmp).unwrap();
