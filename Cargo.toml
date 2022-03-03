@@ -1,34 +1,42 @@
 [package]
-name = "git-issue"
-version = "0.0.5"
-authors = ["Bahtiar `kalkin-` Gadimov <bahtiar@gadimov.de>"]
-edition = "2021"
-description = "Distributed issue management system based on Git"
-repository = "https://localhost/"
-license="propritary"
-keywords = ["git", "cli", "tracking", "issues"]
-categories = ["command-line-utilities", "development-tools"]
+name = 'git-issue'
+authors = ['Bahtiar `kalkin-` Gadimov <bahtiar@gadimov.de>']
+categories = [ 'command-line-utilities', 'development-tools' ]
+description = 'Distributed issue management system based on Git'
+edition = '2021'
+keywords = ['cli', 'git', 'issues', 'tracking']
+license = 'propritary'
+repository = 'https://localhost/'
+version = '0.0.5'
 
 [[bin]]
-name = "git-issue-new"
-path = "src/bin/git-issue-new.rs"
+name = 'git-issue-new'
+path = 'src/bin/git-issue-new.rs'
 
 [lib]
-name = "git_issue"
-path = "src/lib.rs"
+name = 'git_issue'
+path = 'src/lib.rs'
 
 [dependencies]
-clap = { version="^3.0.0", default-features=false, features=["std", "cargo", "derive"] }
-clap-verbosity-flag = "1"
-git-wrapper = "0.5.*"
-log = "^0.4"
-posix-errors = "^1.2.0"
-simple_logger = { version="^2.1.0", default-features=false, features=["stderr", "colors"] }
-terminal-link = "^0.1.0"
-thiserror = "1"
+clap-verbosity-flag = '1'
+git-wrapper = '0.5.*'
+log = '^0.4'
+posix-errors = '^1.2.0'
+terminal-link = '^0.1.0'
+thiserror = '1'
+
+[dependencies.clap]
+default-features = false
+features = ['cargo', 'derive', 'std']
+version = '^3.0.0'
+
+[dependencies.simple_logger]
+default-features = false
+features = ['colors', 'stderr']
+version = '^2.1.0'
 
 [dev-dependencies]
-tempdir = "0.3.*"
+tempdir = '0.3.*'
 
 [features]
 strict-compatibility = []
