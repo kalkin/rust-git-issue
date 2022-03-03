@@ -25,3 +25,21 @@ fn main() {
         std::process::exit(e.code());
     }
 }
+
+#[cfg(test)]
+mod parse_args {
+    use crate::Args;
+    use clap::Parser;
+
+    #[test]
+    fn no_arguments() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-new"]).expect("No arguments");
+    }
+
+    #[test]
+    fn with_existing() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-new", "-e"]).expect("With -e");
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-new", "--existing"]).expect("With --existing");
+    }
+}

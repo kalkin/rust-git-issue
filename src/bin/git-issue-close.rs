@@ -168,3 +168,30 @@ mod cmd_close {
         assert!(crate::execute(&args, data).is_err());
     }
 }
+
+#[cfg(test)]
+mod parse_args {
+    use crate::Args;
+    use clap::Parser;
+
+    #[test]
+    fn no_arguments() {
+        let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-close"]);
+        assert!(
+            result.is_err(),
+            "git-issue-close expects at least one arguments"
+        );
+    }
+
+    #[test]
+    fn one_issue() {
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-close", "1234"]).expect("Parse one issue");
+    }
+
+    #[test]
+    fn multiple_issues() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-close", "1234", "abcdf"])
+            .expect("Parse multiple issues");
+    }
+}

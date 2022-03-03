@@ -204,3 +204,63 @@ mod cmd_new {
         }
     }
 }
+
+#[cfg(test)]
+mod parse_args {
+    use crate::Args;
+    use clap::Parser;
+
+    #[test]
+    fn no_arguments() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-new"])
+            .expect("If no summary provided, the editor is opened");
+    }
+
+    #[test]
+    fn with_summary() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY])
+            .expect("Only summary");
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY, "-t", "foo"])
+                .expect("Summary + tag");
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY, "-m", "foo"])
+                .expect("Summary + milestone");
+        let _args: Args = Parser::try_parse_from(&[
+            "git-issue-new",
+            "-s",
+            crate::cmd_new::SUMMARY,
+            "-t",
+            "bar",
+            "-m",
+            "foo",
+        ])
+        .expect("Summary + milestone");
+    }
+
+    #[test]
+    fn with_tags() {
+        let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-new", "-t"]);
+        assert!(result.is_err(), "-t expects an argument");
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-new", "-t", "asd"]).expect("With one tag");
+
+        let _args: Args = Parser::try_parse_from(&[
+            "git-issue-new",
+            "-s",
+            crate::cmd_new::SUMMARY,
+            "-t",
+            "asd",
+            "--tag=foo",
+        ])
+        .expect("With multiple tags");
+    }
+
+    #[test]
+    fn with_milestone() {
+        let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-new", "-m"]);
+        assert!(result.is_err(), "-m expects an argument");
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-new", "-m", "asd"]).expect("With milestone");
+    }
+}

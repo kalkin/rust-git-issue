@@ -210,3 +210,33 @@ mod cmd_tag {
         }
     }
 }
+
+#[cfg(test)]
+mod parse_args {
+    use crate::Args;
+    use clap::Parser;
+
+    #[test]
+    fn no_arguments() {
+        let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-tag"]);
+        assert!(result.is_err(), "git-issue-tag expects two arguments");
+    }
+
+    #[test]
+    fn no_tag_argument() {
+        let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-tag", "1234"]);
+        assert!(result.is_err(), "git-issue-tag expects two arguments");
+    }
+
+    #[test]
+    fn one_tag() {
+        let _args: Args =
+            Parser::try_parse_from(&["git-issue-tag", "1234", "foo"]).expect("Parse one tag");
+    }
+
+    #[test]
+    fn multiple_tags() {
+        let _args: Args = Parser::try_parse_from(&["git-issue-tag", "1234", "foo", "bar"])
+            .expect("Parse multiple tags");
+    }
+}
