@@ -866,8 +866,10 @@ mod create_repo {
     fn dir_exists() {
         let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
         let tmp = tmp_dir.path();
-        assert!(std::fs::create_dir(tmp.join(".issues")).is_ok());
-        eprintln!("Created dir");
+        assert!(
+            std::fs::create_dir(tmp.join(".issues")).is_ok(),
+            "Created dir"
+        );
         let result = crate::create(tmp, false);
         let msg = format!("{:?}", result);
         assert!(!result.is_ok(), "{}", msg);
