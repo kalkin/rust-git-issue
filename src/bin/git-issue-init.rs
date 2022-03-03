@@ -20,7 +20,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    cli_log::init_with_level(args.verbose.log_level_filter());
     if let Err(e) = git_issue::create(&std::env::current_dir().expect("CWD"), args.existing) {
         std::process::exit(e.code());
     }

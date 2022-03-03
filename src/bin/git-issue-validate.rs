@@ -37,10 +37,10 @@ fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> 
                 let name = format!("{}/{}", &id[..8], dir_entry.file_name().to_string_lossy());
                 let link = terminal_link::Link::new(&name, &url);
                 if fix {
-                    println!("{}:Fixing NL at EOF", link);
+                    log::warn!("{}:Fixing NL at EOF", link);
                     fs::write(cur_path, format!("{}\n", text))?;
                 } else {
-                    println!("{}:Missing NL at EOF", link);
+                    log::warn!("{}:Missing NL at EOF", link);
                     result = false;
                 }
             }
@@ -75,10 +75,10 @@ fn validate(data: &DataSource, fix: bool) -> Result<bool, PosixError> {
 
 fn main() {
     let args = Args::parse();
-    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    cli_log::init_with_level(args.verbose.log_level_filter());
     let data = match DataSource::try_new(&None, &None) {
         Err(e) => {
-            eprintln!(" error: {}", e);
+            log::error!("{}", e);
             std::process::exit(128);
         }
         Ok(repo) => repo,

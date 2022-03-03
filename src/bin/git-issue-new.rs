@@ -23,7 +23,7 @@ struct Args {
     )]
     milestone: Option<String>,
     #[clap(short, long_help = "Issue summary")]
-    summary: String,
+    summary: Option<String>,
 
     #[clap(short, long, long_help = "Edit the issue")]
     edit: bool,
@@ -37,29 +37,36 @@ struct Args {
     verbose: Verbosity<WarnLevel>,
 }
 
-fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id, PosixError> {
+fn execute(
+    args: &Args,
+    mut data: git_issue::DataSource,
+) -> Result<(git_issue::Id, String), PosixError> {
     let empty: Vec<String> = vec![];
     let tags = args.tags.as_ref().unwrap_or(&empty).clone();
     let milestone = args.milestone.clone();
-    let description = if args.edit {
+    let description = if args.edit || args.summary.is_none() {
         let template = format!(
             "{}\n\n{}",
-            args.summary,
+            args.summary.as_deref().unwrap_or_default(),
             &git_issue::read_template(&data.repo, "description").unwrap_or_default()
         );
         git_issue::edit(&data.repo, &template)?
     } else {
-        args.summary.clone()
+        args.summary.as_ref().expect("Summary is provided").clone()
     };
 
     data.start_transaction()?;
     match data.create_issue(&description, tags, milestone) {
         Ok(id) => {
-            let message = format!("gi({}): {}", &id.0[..8], &args.summary);
+            let title = description
+                .lines()
+                .next()
+                .expect("Expected at least one line");
+            let message = format!("gi({}): {}", &id.0[..8], &title);
             #[cfg(not(feature = "strict-compatibility"))]
             log::info!("Merging issue creation as not fast forward branch");
             data.finish_transaction(&message)?;
-            Ok(id)
+            Ok((id, title.to_owned()))
         }
         Err(e) => {
             log::error!("{}", e);
@@ -73,7 +80,7 @@ fn execute(args: &Args, mut data: git_issue::DataSource) -> Result<git_issue::Id
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    cli_log::init_with_level(args.verbose.log_level_filter());
     let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             log::error!(" error: {}", e);
@@ -82,7 +89,7 @@ fn main() {
         Ok(repo) => repo,
     };
     match execute(&args, data) {
-        Ok(id) => println!("Added issue {}: {}", &id.0[..8], args.summary),
+        Ok((id, title)) => log::warn!("Added issue {}: {}", &id.0[..8], title),
         Err(e) => std::process::exit(e.code()),
     }
 }
@@ -93,12 +100,12 @@ mod cmd_new {
     use git_issue::{DataSource, Id};
     use std::path::Path;
 
-    const SUMMARY: &str = "New Issue";
+    pub const SUMMARY: &str = "New Issue";
 
     fn execute_new(args: &crate::Args, tmp: &Path) -> Id {
         let data = DataSource::try_from(tmp).unwrap();
         let result = crate::execute(&args, data);
-        result.expect("Execution successful")
+        result.expect("Execution successful").0
     }
 
     #[test]

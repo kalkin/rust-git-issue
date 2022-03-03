@@ -30,7 +30,7 @@ fn close_issues(data: &DataSource, ids: &[Id]) -> Result<(), PosixError> {
     for id in ids {
         data.remove_tag(id, "open")?;
         data.add_tag(id, "closed")?;
-        println!("Closed issue {}: {}", &id.0[..8], data.title(id).unwrap());
+        log::warn!("Closed issue {}: {}", &id.0[..8], data.title(id).unwrap());
     }
     Ok(())
 }
@@ -76,7 +76,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    cli_log::init_with_level(args.verbose.log_level_filter());
     let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
             log::error!(" error: {}", e);

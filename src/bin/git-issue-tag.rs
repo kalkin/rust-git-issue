@@ -97,7 +97,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();
-    simple_logger::init_with_level(args.verbose.log_level().unwrap()).unwrap();
+    cli_log::init_with_level(args.verbose.log_level_filter());
     log::debug!("Log Level is set to {}", log::max_level());
     let data = match DataSource::try_new(&args.git_dir, &args.work_tree) {
         Err(e) => {
