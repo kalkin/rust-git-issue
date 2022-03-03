@@ -14,7 +14,7 @@ struct Args {
     #[clap(short, long, long_help = "Use existing git repository")]
     existing: bool,
 
-    #[clap(flatten)]
+    #[clap(flatten, next_help_heading = "Output")]
     verbose: Verbosity<WarnLevel>,
 }
 

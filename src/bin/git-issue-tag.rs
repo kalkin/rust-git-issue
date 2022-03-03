@@ -27,7 +27,7 @@ struct Args {
     #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
     work_tree: Option<String>,
 
-    #[clap(flatten)]
+    #[clap(flatten, next_help_heading = "Output")]
     verbose: Verbosity<WarnLevel>,
 }
 
