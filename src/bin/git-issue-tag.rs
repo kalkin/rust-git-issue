@@ -4,7 +4,7 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
 
-use git_issue::{DataSource, Id};
+use git_issue::{DataSource, Id, WriteResult};
 
 #[derive(Parser)]
 #[clap(
@@ -31,44 +31,50 @@ struct Args {
     verbose: Verbosity<WarnLevel>,
 }
 
-fn add_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
+fn add_tags<'a>(
+    data: &DataSource,
+    id: &Id,
+    tags: &'a [String],
+) -> Result<Vec<&'a str>, PosixError> {
     let short_id = &id.0[..8];
-    let cur_tags = data.tags(id);
-    let mut applied: Vec<&str> = Vec::with_capacity(tags.len());
+    let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
-        if cur_tags.contains(tag) {
-            log::warn!("Skipping tag {}. {} already tagged with it.", tag, short_id);
-        } else {
-            log::info!("Adding tag {} to {}", tag, short_id);
-            data.add_tag(id, tag)?;
-            applied.push(tag);
+        match data.add_tag(id, tag)? {
+            WriteResult::Applied => {
+                log::info!("Adding tag {} to {}", tag, short_id);
+                applied.push(tag);
+            }
+            WriteResult::NoChanges => {
+                log::warn!("Skipping tag {}. {} already tagged with it.", tag, short_id);
+            }
         }
     }
 
-    let word = if applied.len() > 1 { "tags" } else { "tag" };
-    let msg = format!("gi({}): Add {}: {}", short_id, word, applied.join(", "));
-    Ok(msg)
+    Ok(applied)
 }
 
-fn remove_tags(data: &DataSource, id: &Id, tags: &[String]) -> Result<String, PosixError> {
+fn remove_tags<'a>(
+    data: &DataSource,
+    id: &Id,
+    tags: &'a [String],
+) -> Result<Vec<&'a str>, PosixError> {
     let short_id = &id.0[..8];
-    let cur_tags = data.tags(id);
-    let mut applied: Vec<&str> = Vec::with_capacity(tags.len());
+    let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
-        if cur_tags.contains(tag) {
-            log::info!("Removing tag {} from {}", tag, short_id);
-            data.remove_tag(id, tag)?;
-            applied.push(tag);
-        } else {
-            log::warn!("Skipping tag {}. {} not tagged with it.", tag, short_id);
+        match data.remove_tag(id, tag)? {
+            WriteResult::Applied => {
+                log::info!("Removing tag {} from {}", tag, short_id);
+                applied.push(tag);
+            }
+            WriteResult::NoChanges => {
+                log::warn!("Skipping tag {}. {} not tagged with it.", tag, short_id);
+            }
         }
     }
 
-    let word = if applied.len() > 1 { "tags" } else { "tag" };
-    let msg = format!("gi({}): Remove {}: {}", short_id, word, applied.join(", "));
-    Ok(msg)
+    Ok(applied)
 }
 
 fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
@@ -76,22 +82,35 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
     log::info!("Starting transaction");
     data.start_transaction().map_err(PosixError::from)?;
 
-    let result = if args.remove {
+    let applied_tags_result = if args.remove {
         remove_tags(&data, &id, &args.tags)
     } else {
         add_tags(&data, &id, &args.tags)
     };
-    match result {
-        Ok(message) => {
-            log::info!("Committing transaction");
-            data.finish_transaction(&message).map_err(PosixError::from)
-        }
-        Err(e) => {
-            log::warn!("An error happend. Rolling back transaction.");
-            data.rollback_transaction()?;
-            Err(e)
-        }
-    }
+    applied_tags_result
+        .map_err(PosixError::from)
+        .and_then(|applied| {
+            if applied.is_empty() {
+                log::warn!("Nothing to do");
+                log::info!("Rolling back transaction");
+                data.rollback_transaction().map_err(PosixError::from)
+            } else {
+                let word = if applied.len() > 1 { "tags" } else { "tag" };
+                let message = if args.remove {
+                    format!(
+                        "gi({}): Remove {}: {}",
+                        &id.0[..8],
+                        word,
+                        applied.join(", ")
+                    )
+                } else {
+                    format!("gi({}): Add {}: {}", &id.0[..8], word, applied.join(", "))
+                };
+
+                log::info!("Committing transaction");
+                data.finish_transaction(&message).map_err(PosixError::from)
+            }
+        })
 }
 
 #[cfg(not(tarpaulin_include))]

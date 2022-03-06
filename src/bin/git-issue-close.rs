@@ -3,7 +3,7 @@ use clap::Parser;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use posix_errors::PosixError;
 
-use git_issue::{DataSource, FindError, Id};
+use git_issue::{DataSource, FindError, Id, WriteResult};
 
 #[derive(Parser)]
 #[clap(
@@ -26,13 +26,24 @@ struct Args {
     verbose: Verbosity<WarnLevel>,
 }
 
-fn close_issues(data: &DataSource, ids: &[Id]) -> Result<(), PosixError> {
+fn close_issues(data: &DataSource, ids: &[Id]) -> Result<WriteResult, PosixError> {
+    let mut results: Vec<WriteResult> = Vec::with_capacity(ids.len());
     for id in ids {
-        data.remove_tag(id, "open")?;
-        data.add_tag(id, "closed")?;
-        log::warn!("Closed issue {}: {}", &id.0[..8], data.title(id).unwrap());
+        let r = data.close_issue(id)?;
+        match r {
+            WriteResult::Applied => log::warn!(
+                "Closed issue {}: {}",
+                &id.0[..8],
+                data.title(id).expect("Has a description")
+            ),
+            WriteResult::NoChanges => {
+                log::warn!("Skipping issue {}. It is already closed", &id.0[..8]);
+            }
+        }
+
+        results.push(r);
     }
-    Ok(())
+    Ok(WriteResult::from(results))
 }
 
 fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
@@ -47,7 +58,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
     data.start_transaction().map_err(PosixError::from)?;
 
     match close_issues(&data, &issue_ids) {
-        Ok(_) => {
+        Ok(WriteResult::Applied) => {
             let msg = if issue_ids.len() == 1 {
                 format!(
                     "DONE({}): {}",
@@ -64,6 +75,11 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
             };
             log::info!("Committing transaction");
             data.finish_transaction(&msg).map_err(PosixError::from)
+        }
+        Ok(WriteResult::NoChanges) => {
+            log::warn!("Nothing to do");
+            log::info!("Rolling back transaction");
+            data.rollback_transaction().map_err(PosixError::from)
         }
         Err(e) => {
             log::warn!("An error happend. Rolling back transaction.");

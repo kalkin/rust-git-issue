@@ -280,6 +280,18 @@ impl DataSource {
         }
     }
 
+    /// Close an issue
+    ///
+    /// # Errors
+    ///
+    /// Will throw error on failure to do IO
+    #[inline]
+    pub fn close_issue(&self, id: &Id) -> Result<WriteResult, WriteError> {
+        let remove_result = self.remove_tag(id, "open")?;
+        let add_result = self.add_tag(id, "closed")?;
+        Ok(WriteResult::from(vec![remove_result, add_result]))
+    }
+
     fn find_issues_dir(p: &Path) -> Option<PathBuf> {
         let mut cur = p.to_path_buf();
         loop {
