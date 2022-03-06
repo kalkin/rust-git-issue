@@ -107,7 +107,7 @@ mod cmd_close {
 
     #[test]
     fn single_issue() {
-        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &[]);
 
@@ -127,7 +127,7 @@ mod cmd_close {
 
     #[test]
     fn multiple_issue() {
-        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &[]);
         let id2 = {
@@ -158,7 +158,7 @@ mod cmd_close {
 
     #[test]
     fn non_existing_issue() {
-        let tmp_dir = tempdir::TempDir::new("close").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         git_issue::create(tmp, false).unwrap();
 

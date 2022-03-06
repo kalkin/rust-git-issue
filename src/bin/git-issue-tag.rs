@@ -132,7 +132,7 @@ mod cmd_tag {
 
     #[test]
     fn add_tag() {
-        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &[]);
         {
@@ -154,7 +154,7 @@ mod cmd_tag {
 
     #[test]
     fn add_duplicate_tag() {
-        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &["foo".to_string()]);
         {
@@ -176,7 +176,7 @@ mod cmd_tag {
 
     #[test]
     fn remove_tag() {
-        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &["foo".to_string()]);
         {
@@ -194,7 +194,7 @@ mod cmd_tag {
 
     #[test]
     fn remove_non_existing_tag() {
-        let tmp_dir = tempdir::TempDir::new("tag").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let id = prepare(&tmp, &[]);
         {

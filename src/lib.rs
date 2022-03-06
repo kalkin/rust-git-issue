@@ -783,24 +783,6 @@ fn list_dirs(path: &Path) -> Vec<PathBuf> {
 
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
-macro_rules! function {
-    () => {{
-        fn f() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        let name = type_name_of(f);
-
-        // Find and cut the rest of the path
-        match &name[..name.len() - 3].rfind(':') {
-            Some(pos) => &name[pos + 1..name.len() - 3],
-            None => &name[..name.len() - 3],
-        }
-    }};
-}
-
-#[cfg(test)]
-#[cfg(not(tarpaulin_include))]
 mod test_find_issue {
     use crate::DataSource;
     #[test]
@@ -821,7 +803,7 @@ mod test_find_issue {
 
     #[test]
     fn by_one_char() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let issue_id = data.create_issue(&"Foo Bar", vec![], None).unwrap();
         let needle = issue_id.0.chars().next().unwrap().to_string();
@@ -845,7 +827,7 @@ mod test_find_issue {
 
     #[test]
     fn not_found() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         assert!(data.find_issue(&"1").is_err());
         assert!(data.find_issue(&"12").is_err());
@@ -864,7 +846,7 @@ mod test_find_issue {
 mod create_repo {
     #[test]
     fn dir_exists() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         assert!(
             std::fs::create_dir(tmp.join(".issues")).is_ok(),
@@ -877,7 +859,7 @@ mod create_repo {
 
     #[test]
     fn create() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         let result = crate::create(tmp, false);
         let msg = format!("{:?}", result);
@@ -895,7 +877,7 @@ mod create_issue {
 
     #[test]
     fn only_message() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
         let result = data.create_issue(&desc, vec![], None);
@@ -914,7 +896,7 @@ mod create_issue {
 
     #[test]
     fn with_milestone() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
         let result = data.create_issue(&desc, vec![], Some("High Goal".to_string()));
@@ -934,7 +916,7 @@ mod create_issue {
 
     #[test]
     fn with_tags() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
         let result = data.create_issue(&desc, vec!["foo".to_string()], None);
@@ -954,7 +936,7 @@ mod create_issue {
 
     #[test]
     fn nl_at_eof() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
         let result = data.create_issue(
@@ -990,7 +972,7 @@ mod create_issue {
 mod add_tag {
     #[test]
     fn add_tag() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
@@ -1004,7 +986,7 @@ mod add_tag {
 
     #[test]
     fn add_duplicate_tag() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
@@ -1019,7 +1001,7 @@ mod add_tag {
 
     #[test]
     fn remove_tag() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
@@ -1036,7 +1018,7 @@ mod add_tag {
 
     #[test]
     fn remove_non_existing_tag() {
-        let tmp_dir = tempdir::TempDir::new(function!()).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";

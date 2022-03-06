@@ -110,7 +110,7 @@ mod cmd_new {
 
     #[test]
     fn only_message() {
-        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         git_issue::create(tmp, false).unwrap();
 
@@ -139,7 +139,7 @@ mod cmd_new {
 
     #[test]
     fn with_tags() {
-        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         git_issue::create(tmp, false).unwrap();
 
@@ -176,7 +176,7 @@ mod cmd_new {
 
     #[test]
     fn with_milestone() {
-        let tmp_dir = tempdir::TempDir::new("new").unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
         git_issue::create(tmp, false).unwrap();
         let milestone = "World Domination!";
