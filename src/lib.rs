@@ -653,6 +653,22 @@ impl DataSource {
     ///
     /// Will throw error on failure to commit
     #[inline]
+    pub fn finish_transaction_without_merge(&mut self) -> Result<(), TransactionError> {
+        let transaction = &self.transaction.as_ref().expect("A started transaction");
+        if transaction.stash_before {
+            log::debug!("Unstashing repository changes");
+            self.repo
+                .stash_pop()
+                .map_err(|e| FinishError::Unstash(format!("{}", e)))?;
+        }
+        self.transaction = None;
+        Ok(())
+    }
+
+    /// # Errors
+    ///
+    /// Will throw error on failure to commit
+    #[inline]
     pub fn finish_transaction(&mut self, message: &str) -> Result<(), TransactionError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
         #[cfg(not(feature = "strict-compatibility"))]
