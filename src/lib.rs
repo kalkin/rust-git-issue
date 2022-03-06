@@ -61,6 +61,25 @@ impl From<&PathBuf> for Id {
     }
 }
 
+/// Returned by functions when data change is requested
+#[derive(Debug, PartialEq)]
+pub enum WriteResult {
+    /// The requested data change was applied
+    Applied,
+    /// The requested data change was redundant and was not applied
+    NoChanges,
+}
+
+impl From<Vec<Self>> for WriteResult {
+    #[inline]
+    fn from(list: Vec<Self>) -> Self {
+        if list.into_iter().any(|r| r == Self::Applied) {
+            return Self::Applied;
+        }
+        Self::NoChanges
+    }
+}
+
 #[derive(Debug)]
 enum Property {
     Description,
@@ -375,15 +394,16 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn add_tag(&self, id: &Id, tag: &str) -> Result<(), WriteError> {
+    pub fn add_tag(&self, id: &Id, tag: &str) -> Result<WriteResult, WriteError> {
         if self.tags(id).contains(&tag.to_owned()) {
-            Ok(())
+            Ok(WriteResult::NoChanges)
         } else {
             let property = CommitProperty::Tag {
                 action: Action::Add,
                 tag: tag.to_owned(),
             };
-            self.write(id, &property).map_err(Into::into)
+            self.write(id, &property).map_err(WriteError::from)?;
+            Ok(WriteResult::Applied)
         }
     }
 
@@ -391,15 +411,16 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<(), WriteError> {
+    pub fn remove_tag(&self, id: &Id, tag: &str) -> Result<WriteResult, WriteError> {
         if self.tags(id).contains(&tag.to_owned()) {
             let property = CommitProperty::Tag {
                 action: Action::Remove,
                 tag: tag.to_owned(),
             };
-            self.write(id, &property).map_err(Into::into)
+            self.write(id, &property).map_err(WriteError::from)?;
+            Ok(WriteResult::Applied)
         } else {
-            Ok(())
+            Ok(WriteResult::NoChanges)
         }
     }
 
@@ -407,12 +428,18 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<(), WriteError> {
+    pub fn add_milestone(&self, id: &Id, milestone: &str) -> Result<WriteResult, WriteError> {
+        if let Some(cur_milestone) = self.milestone(id) {
+            if cur_milestone == milestone {
+                return Ok(WriteResult::NoChanges);
+            }
+        }
         let property = CommitProperty::Milestone {
             action: Action::Add,
             milestone: milestone.to_owned(),
         };
-        self.write(id, &property).map_err(Into::into)
+        self.write(id, &property).map_err(WriteError::from)?;
+        Ok(WriteResult::Applied)
     }
 
     /// # Errors
@@ -952,7 +979,8 @@ mod create_issue {
 }
 
 #[cfg(test)]
-mod add_tag {
+mod tags {
+    use crate::WriteResult;
     #[test]
     fn add_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
@@ -960,7 +988,10 @@ mod add_tag {
 
         let desc = "Foo Bar";
         let issue_id = data.create_issue(&desc, vec![], None).unwrap();
-        data.add_tag(&issue_id, "foo").unwrap();
+        {
+            let actual = data.add_tag(&issue_id, "foo").expect("Added tag foo");
+            assert_eq!(actual, WriteResult::Applied, "Changed data");
+        }
 
         let actual_tags = data.tags(&issue_id);
         let expected_tags = vec!["foo".to_string(), "open".to_string()];
@@ -974,8 +1005,12 @@ mod add_tag {
 
         let desc = "Foo Bar";
         let issue_id = data.create_issue(&desc, vec![], None).unwrap();
-        let result = data.add_tag(&issue_id, "open");
-        assert!(result.is_ok(), "{:?}", result);
+        {
+            let actual = data
+                .add_tag(&issue_id, "open")
+                .expect("Add tag is succesful");
+            assert_eq!(actual, WriteResult::NoChanges, "No changes were applied");
+        }
 
         let actual_tags = data.tags(&issue_id);
         let expected_tags = vec!["open".to_string()];
@@ -991,8 +1026,10 @@ mod add_tag {
         let issue_id = data
             .create_issue(&desc, vec!["foo".to_string()], None)
             .unwrap();
-        let result = data.remove_tag(&issue_id, "foo");
-        assert!(result.is_ok(), "{:?}", result);
+        {
+            let actual = data.remove_tag(&issue_id, "foo").expect("Removed tag foo");
+            assert_eq!(actual, WriteResult::Applied, "Changed data");
+        }
 
         let actual_tags = data.tags(&issue_id);
         let expected_tags = vec!["open".to_string()];
@@ -1006,8 +1043,12 @@ mod add_tag {
 
         let desc = "Foo Bar";
         let issue_id = data.create_issue(&desc, vec![], None).unwrap();
-        let result = data.remove_tag(&issue_id, "foo");
-        assert!(result.is_ok(), "{:?}", result);
+        {
+            let actual = data
+                .remove_tag(&issue_id, "foo")
+                .expect("Successful remove tag");
+            assert_eq!(actual, WriteResult::NoChanges, "No changes were applied");
+        }
 
         let actual_tags = data.tags(&issue_id);
         let expected_tags = vec!["open".to_string()];
