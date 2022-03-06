@@ -572,9 +572,9 @@ impl DataSource {
     #[inline]
     pub fn finish_transaction(&mut self, message: &str) -> Result<(), TransactionError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
-        log::info!("Merging issue changes as not fast forward branch");
         #[cfg(not(feature = "strict-compatibility"))]
         {
+            log::info!("Merging issue changes as not fast forward branch");
             let sha = self.repo.head().ok_or(TransactionError::BareRepository)?;
             x::reset_hard(&self.repo, &transaction.start_sha).map_err(|e| {
                 if transaction.stash_before {
