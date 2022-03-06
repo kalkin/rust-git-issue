@@ -65,7 +65,7 @@ impl From<&PathBuf> for Id {
 enum Property {
     Description,
     Tags,
-    Milestone(String),
+    Milestone,
 }
 
 impl Property {
@@ -75,7 +75,7 @@ impl Property {
         match self {
             Self::Description => "description",
             Self::Tags => "tags",
-            Self::Milestone(_) => "milestone",
+            Self::Milestone => "milestone",
         }
         .to_owned()
     }
@@ -431,16 +431,7 @@ impl DataSource {
     #[must_use]
     #[inline]
     pub fn milestone(&self, id: &Id) -> Option<String> {
-        let dir_path = id.path(&self.issues_dir);
-        let milestone_path = &dir_path.join("milestone");
-        let value = std::fs::read_to_string(milestone_path);
-        value.is_ok().then(|| {
-            value
-                .as_ref()
-                .expect("already checked value")
-                .trim()
-                .to_owned()
-        })
+        self.read(id, &Property::Milestone).ok()
     }
 
     /// # Errors
@@ -456,22 +447,14 @@ impl DataSource {
     #[must_use]
     #[inline]
     pub fn tags(&self, id: &Id) -> Vec<String> {
-        let dir_path = id.path(&self.issues_dir);
-        let tags_path = &dir_path.join("tags");
-        let value = std::fs::read_to_string(tags_path);
-        if value.is_ok() {
-            value
-                .as_ref()
-                .expect("already checked value")
-                .trim()
-                .lines()
-                .collect::<Vec<&str>>()
-        } else {
-            vec![]
-        }
-        .iter()
-        .map(ToString::to_string)
-        .collect()
+        self.read(id, &Property::Tags)
+            .map(|v| {
+                v.trim()
+                    .lines()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
     }
 
     fn write_to_file(&self, id: &Id, property: &CommitProperty) -> Result<(), WritePropertyError> {
