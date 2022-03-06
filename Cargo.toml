@@ -13,6 +13,10 @@ version = '0.0.5'
 name = 'git-issue-new'
 path = 'src/bin/git-issue-new.rs'
 
+[[bin]]
+name = 'git-issue-milestone'
+path = 'src/bin/git-issue-milestone.rs'
+
 [lib]
 name = 'git_issue'
 path = 'src/lib.rs'

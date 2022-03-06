@@ -25,7 +25,7 @@ Current goal is to make it a drop in replacement.
   - [ ] `comment` Add an issue comment.
   - [ ] `edit` Edit the specified issue's (or comment's with `-c`) description
   - [x] `tag` Add (or remove with `-r`) a tag.
-  - [ ] `milestone` Edit issue's milestone.
+  - [x] `milestone` Edit issue's milestone.
   - [ ] `weight` Edit issue's weight.
   - [ ] `duedate` Edit issue's due date.
   - [ ] `timeestimate` Edit time estimate for this issue.
