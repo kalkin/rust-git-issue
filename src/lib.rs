@@ -570,22 +570,78 @@ impl DataSource {
                 action: Action::Add,
                 tag,
                 ..
-            } => format!("gi: Add tag\n\ngi tag add {}", tag),
+            } => {
+                #[cfg(feature = "strict-compatibility")]
+                {
+                    format!("gi: Add tag\n\ngi tag add {}", tag)
+                }
+                #[cfg(not(feature = "strict-compatibility"))]
+                {
+                    format!(
+                        "gi({}): Add tag {}\n\ngi tag add {}",
+                        &target_id.0[..8],
+                        tag,
+                        tag
+                    )
+                }
+            }
             CommitProperty::Tag {
                 action: Action::Remove,
                 tag,
                 ..
-            } => format!("gi: Remove tag\n\ngi tag remove {}", tag),
+            } => {
+                #[cfg(feature = "strict-compatibility")]
+                {
+                    format!("gi: Remove tag\n\ngi tag remove {}", tag)
+                }
+                #[cfg(not(feature = "strict-compatibility"))]
+                {
+                    format!(
+                        "gi({}): Remove tag {}\n\ngi tag add {}",
+                        &target_id.0[..8],
+                        tag,
+                        tag
+                    )
+                }
+            }
             CommitProperty::Milestone {
                 action: Action::Add,
                 milestone,
                 ..
-            } => format!("gi: Add milestone\n\ngi milestone add {}", milestone),
+            } => {
+                #[cfg(feature = "strict-compatibility")]
+                {
+                    format!("gi: Add milestone\n\ngi milestone add {}", milestone)
+                }
+                #[cfg(not(feature = "strict-compatibility"))]
+                {
+                    format!(
+                        "gi({}): Add milestone {}\n\ngi milestone add {}",
+                        &target_id.0[..8],
+                        milestone,
+                        milestone
+                    )
+                }
+            }
             CommitProperty::Milestone {
                 action: Action::Remove,
                 milestone,
                 ..
-            } => format!("gi: Remove milestone\n\ngi milestone remove {}", milestone),
+            } => {
+                #[cfg(feature = "strict-compatibility")]
+                {
+                    format!("gi: Remove milestone\n\ngi milestone remove {}", milestone)
+                }
+                #[cfg(not(feature = "strict-compatibility"))]
+                {
+                    format!(
+                        "gi({}): Remove milestone {}\n\ngi milestone remove {}",
+                        &target_id.0[..8],
+                        milestone,
+                        milestone
+                    )
+                }
+            }
         };
 
         self.repo
