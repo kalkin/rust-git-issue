@@ -458,12 +458,17 @@ impl DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn remove_milestone(&self, id: &Id, milestone: &str) -> Result<(), WriteError> {
-        let property = CommitProperty::Milestone {
-            action: Action::Add,
-            milestone: milestone.to_owned(),
-        };
-        self.write(id, &property).map_err(Into::into)
+    pub fn remove_milestone(&self, id: &Id) -> Result<WriteResult, WriteError> {
+        if let Some(milestone) = self.milestone(id) {
+            let property = CommitProperty::Milestone {
+                action: Action::Remove,
+                milestone,
+            };
+            self.write(id, &property).map_err(WriteError::from)?;
+            Ok(WriteResult::Applied)
+        } else {
+            Ok(WriteResult::NoChanges)
+        }
     }
 
     /// Returns milestone of an issue if set.
@@ -1065,5 +1070,123 @@ mod tags {
         let actual_tags = data.tags(&issue_id);
         let expected_tags = vec!["open".to_string()];
         assert_eq!(actual_tags, expected_tags);
+    }
+}
+
+#[cfg(test)]
+mod milestone {
+    use crate::WriteResult;
+    #[test]
+    fn no_milestone() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let expected = None;
+        let issue_id = data
+            .create_issue("Foo Bar", vec![], expected.clone())
+            .unwrap();
+
+        let actual = data.milestone(&issue_id);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn add_milestone_on_creation() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let expected = Some("World Domination".to_string());
+        let issue_id = data
+            .create_issue("Foo Bar", vec![], expected.clone())
+            .expect("Created an issue");
+
+        let actual = data.milestone(&issue_id);
+        assert_eq!(actual, expected);
+
+        {
+            let actual = data
+                .add_milestone(&issue_id, "World Domination")
+                .expect("Add milestone");
+            assert_eq!(actual, WriteResult::NoChanges, "No changes were applied");
+        }
+    }
+
+    #[test]
+    fn add_milestone() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let expected = "World Domination";
+        let issue_id = data
+            .create_issue("Foo Bar", vec![], None)
+            .expect("Created an issue");
+
+        assert_eq!(data.milestone(&issue_id), None, "Has no milestone");
+
+        {
+            let actual = data
+                .add_milestone(&issue_id, expected)
+                .expect("Add milestone");
+            assert_eq!(actual, WriteResult::Applied, "Changed data");
+        }
+        {
+            let actual = data.milestone(&issue_id);
+            assert_eq!(
+                actual,
+                Some(expected.to_owned()),
+                "Milestone “{}” is set",
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn remove_milestone() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let expected = Some("World Domination".to_string());
+        let issue_id = data
+            .create_issue("Foo Bar", vec![], expected.clone())
+            .unwrap();
+
+        let actual = data.milestone(&issue_id);
+        assert_eq!(actual, expected, "Has a milestone");
+
+        {
+            let actual = data
+                .remove_milestone(&issue_id)
+                .expect("Successful removal of milestone");
+            assert_eq!(actual, WriteResult::Applied, "Changed data");
+        }
+        let actual = data.milestone(&issue_id);
+        assert_eq!(actual, None, "Has no milestone");
+    }
+
+    #[test]
+    fn remove_no_milestone() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let data = crate::test_source(tmp_dir.path());
+
+        let expected = None;
+        let issue_id = data
+            .create_issue("Foo Bar", vec![], expected.clone())
+            .unwrap();
+        {
+            let actual = data.milestone(&issue_id);
+            assert_eq!(actual, expected, "No milestone");
+        }
+
+        {
+            let actual = data
+                .remove_milestone(&issue_id)
+                .expect("Successful removal of milestone");
+            assert_eq!(actual, WriteResult::NoChanges, "No changes were applied");
+        }
+
+        {
+            let actual = data.milestone(&issue_id);
+            assert_eq!(actual, None, "Has still no milestone");
+        }
     }
 }
