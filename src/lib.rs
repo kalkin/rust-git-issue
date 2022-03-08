@@ -881,6 +881,13 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
     result
 }
 
+fn dir_filter(read_dir_result: &Result<std::fs::DirEntry, std::io::Error>) -> bool {
+    read_dir_result
+        .as_ref()
+        .map(|dir_entry| dir_entry.metadata().map(|d| d.is_dir()).unwrap_or(false))
+        .unwrap_or(false)
+}
+
 fn list_dirs(path: &Path) -> Vec<PathBuf> {
     if !path.exists() {
         return vec![];
@@ -888,14 +895,7 @@ fn list_dirs(path: &Path) -> Vec<PathBuf> {
     let paths: Vec<PathBuf> = path
         .read_dir()
         .expect("Directory")
-        .filter(|x| {
-            if let Ok(dir_entry) = x {
-                if let Ok(meta) = dir_entry.metadata() {
-                    return meta.is_dir();
-                }
-            }
-            false
-        })
+        .filter(dir_filter)
         .map(|d| d.expect("IO Successful").path())
         .collect();
     paths
