@@ -517,7 +517,11 @@ impl DataSource {
             CommitProperty::Tag { tag, action, .. } => {
                 let value = std::fs::read_to_string(path);
                 let mut tags = if value.is_ok() && path.exists() {
-                    value.as_ref().unwrap().lines().collect::<Vec<&str>>()
+                    value
+                        .as_ref()
+                        .expect("value is set at this point")
+                        .lines()
+                        .collect::<Vec<&str>>()
                 } else {
                     vec![]
                 };
@@ -715,8 +719,12 @@ impl TryFrom<&Path> for DataSource {
     #[inline]
     fn try_from(p: &Path) -> Result<Self, Self::Error> {
         let issues_dir = Self::find_issues_dir(p).ok_or(InitError::IssuesRepoNotFound)?;
-        let repo = Repository::from_args(Some(issues_dir.to_str().unwrap()), None, None)
-            .map_err(|_err| InitError::GitRepoNotFound)?;
+        let repo = Repository::from_args(
+            Some(issues_dir.to_str().expect("Convert to string")),
+            None,
+            None,
+        )
+        .map_err(|_err| InitError::GitRepoNotFound)?;
         Ok(Self::new(issues_dir, repo))
     }
 }

@@ -63,7 +63,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
                 format!(
                     "DONE({}): {}",
                     &issue_ids[0].0[..8],
-                    data.title(&issue_ids[0]).unwrap()
+                    data.title(&issue_ids[0])?,
                 )
             } else {
                 let text = issue_ids
