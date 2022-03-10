@@ -172,7 +172,7 @@ impl DataSource {
         let mark_text = "gi new mark";
         let message = format!("gi: Add issue\n\n{}", mark_text);
         self.repo.commit_extended(&message, true, true)?;
-        let git_head = self.repo.head().expect("At this point HEAD should exist");
+        let git_head = self.repo.head();
         let id: Id = Id(git_head);
         log::debug!("{} {:?}", mark_text, id);
 
@@ -314,7 +314,7 @@ impl DataSource {
     /// Will fail when `HEAD` can not be resolved
     #[inline]
     pub fn start_transaction(&mut self) -> Result<(), TransactionError> {
-        let start_sha = self.repo.head().ok_or(TransactionError::BareRepository)?;
+        let start_sha = self.repo.head();
 
         let stash_before = !self.repo.is_clean();
         let transaction = Transaction {
@@ -674,7 +674,7 @@ impl DataSource {
         #[cfg(not(feature = "strict-compatibility"))]
         {
             log::info!("Merging issue changes as not fast forward branch");
-            let sha = self.repo.head().ok_or(TransactionError::BareRepository)?;
+            let sha = self.repo.head();
             x::reset_hard(&self.repo, &transaction.start_sha).map_err(|e| {
                 if transaction.stash_before {
                     TransactionError::FinishError(FinishError::ResetUnstash(e.message()))
@@ -811,9 +811,6 @@ pub fn create(path: &Path, existing: bool) -> Result<(), PosixError> {
     match repo.commit_extended(message, false, false) {
         Ok(_) => Ok(()),
         Err(CommitError::Failure(msg, code)) => Err(PosixError::new(code, msg)),
-        Err(CommitError::BareRepository) => {
-            Err(PosixError::new(E_REPO_BARE, "Bare repository".to_owned()))
-        }
     }
 }
 

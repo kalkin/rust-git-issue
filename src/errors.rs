@@ -114,9 +114,6 @@ impl From<WritePropertyError> for PosixError {
         match e {
             WritePropertyError::IoError(err) => err.into(),
             WritePropertyError::StagingError(err) => match err {
-                StagingError::BareRepository => {
-                    Self::new(E_REPO_BARE, "Can not use bare git repository".to_owned())
-                }
                 StagingError::FileDoesNotExist(p) => {
                     Self::new(posix_errors::EDOOFUS, format!("Unstaged file {:?} Bug?", p))
                 }
@@ -132,7 +129,6 @@ impl From<WriteError> for PosixError {
             WriteError::PropertyError(err) => err.into(),
             WriteError::CommitError(err) => match err {
                 CommitError::Failure(msg, code) => Self::new(code, msg),
-                CommitError::BareRepository => Self::new(E_REPO_BARE, "Bare repository".to_owned()),
             },
         }
     }
