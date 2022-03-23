@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, FixedOffset};
+
 use git_wrapper::x;
 use git_wrapper::{CommitError, Repository};
 use posix_errors::PosixError;
@@ -55,7 +57,7 @@ impl Id {
     #[inline]
     #[must_use]
     pub fn id(&self) -> &str {
-        &self.id
+        &self.0
     }
 
     /// Returns id shortened to 8 chars
@@ -203,6 +205,19 @@ impl DataSource {
             log::debug!("gi milestone add {}", m);
         }
         Ok(id)
+    }
+
+    /// Return the creation date
+    #[inline]
+    #[must_use]
+    pub fn creation_date(&self, id: &Id) -> DateTime<FixedOffset> {
+        let mut cmd = self.repo.git();
+        cmd.args(&["show", "--no-patch", "--format=%aI", &id.0]);
+        let out = cmd.output().expect("Failed to execute git-stash(1)");
+
+        let output = String::from_utf8_lossy(&out.stdout);
+        let date_text = output.trim();
+        DateTime::parse_from_rfc3339(date_text).expect("Valid DateTime")
     }
 
     /// # Errors
