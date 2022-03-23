@@ -101,6 +101,7 @@ impl From<Vec<Self>> for WriteResult {
 #[derive(Debug)]
 enum Property {
     Description,
+    DueDate,
     Tags,
     Milestone,
 }
@@ -110,6 +111,7 @@ impl Property {
     #[inline]
     pub fn filename(&self) -> String {
         match self {
+            Self::DueDate => "duedate",
             Self::Description => "description",
             Self::Tags => "tags",
             Self::Milestone => "milestone",
@@ -392,6 +394,24 @@ impl DataSource {
     fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
         let path = id.path(&self.issues_dir).join(prop.filename());
         Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
+    }
+
+    /// Returns duedate of an issue
+    ///
+    /// # Errors
+    ///
+    /// Will throw error on failure to do IO
+    #[inline]
+    pub fn duedate(&self, id: &Id) -> Result<Option<DateTime<FixedOffset>>, std::io::Error> {
+        match self.read(id, &Property::DueDate) {
+            Ok(date_text) => Ok(Some(
+                DateTime::parse_from_rfc3339(&date_text).expect("Valid DateTime"),
+            )),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => Ok(None),
+                _ => Err(e),
+            },
+        }
     }
 
     /// # Errors
