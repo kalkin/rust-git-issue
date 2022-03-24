@@ -171,6 +171,9 @@ pub struct DataSource {
     transaction: Option<Transaction>,
 }
 
+/// Vector of Strings containing tags
+pub type Tags = Vec<String>;
+
 impl DataSource {
     /// Create new `DataSource` instance
     #[must_use]
@@ -190,7 +193,7 @@ impl DataSource {
     pub fn create_issue(
         &self,
         description: &str,
-        tags: Vec<String>,
+        tags: Tags,
         milestone: Option<String>,
     ) -> Result<Id, WriteError> {
         let mark_text = "gi new mark";
@@ -547,7 +550,7 @@ impl DataSource {
     /// Returns tags for an issue
     #[must_use]
     #[inline]
-    pub fn tags(&self, id: &Id) -> Vec<String> {
+    pub fn tags(&self, id: &Id) -> Tags {
         self.read(id, &Property::Tags)
             .map(|v| {
                 v.trim()
