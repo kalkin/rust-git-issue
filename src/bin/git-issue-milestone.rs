@@ -51,12 +51,12 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
                 Err(PosixError::from(e))
             }
             Ok(WriteResult::NoChanges) => {
-                log::warn!("Issue already has no milestone {}", &id.0[..8]);
+                log::warn!("Issue already has no milestone {}", &id.short_id());
                 log::info!("Rolling back transaction");
                 data.rollback_transaction().map_err(PosixError::from)
             }
             Ok(WriteResult::Applied) => {
-                log::warn!("Removed milestone from issue {}", &id.0[..8]);
+                log::warn!("Removed milestone from issue {}", &id.short_id());
                 log::info!("Committing transaction");
                 data.finish_transaction_without_merge()
                     .map_err(PosixError::from)
@@ -74,7 +74,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
                 log::warn!(
                     "Milestone “{}” already set on issue {}",
                     &args.milestone.as_ref().expect("Milestone set"),
-                    &id.0[..8]
+                    &id.short_id()
                 );
                 log::info!("Rolling back transaction");
                 data.rollback_transaction().map_err(PosixError::from)
@@ -83,7 +83,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
                 log::warn!(
                     "Set milestone “{}” on issue {}",
                     &args.milestone.as_ref().expect("Milestone set"),
-                    &id.0[..8]
+                    &id.short_id()
                 );
                 log::info!("Committing transaction");
                 data.finish_transaction_without_merge()
@@ -97,12 +97,12 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
         })
     .and_then(|r| match r {
             WriteResult::Applied => {
-                log::warn!("Set milestone “{}” on issue {}", &args.milestone, &id.0[..8]);
+                log::warn!("Set milestone “{}” on issue {}", &args.milestone, &id.short_id());
                 log::info!("Committing transaction");
                 data.finish_transaction_without_merge().map_err(PosixError::from)
             }
             WriteResult::NoChanges => {
-                log::warn!("Milestone “{}” already set on issue {}", &args.milestone, &id.0[..8]);
+                log::warn!("Milestone “{}” already set on issue {}", &args.milestone, &id.short_id());
                 log::info!("Rolling back transaction");
                 data.rollback_transaction().map_err(PosixError::from)
             }

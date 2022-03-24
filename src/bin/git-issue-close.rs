@@ -33,11 +33,11 @@ fn close_issues(data: &DataSource, ids: &[Id]) -> Result<WriteResult, PosixError
         match r {
             WriteResult::Applied => log::warn!(
                 "Closed issue {}: {}",
-                &id.0[..8],
+                &id.short_id(),
                 data.title(id).expect("Has a description")
             ),
             WriteResult::NoChanges => {
-                log::warn!("Skipping issue {}. It is already closed", &id.0[..8]);
+                log::warn!("Skipping issue {}. It is already closed", &id.short_id());
             }
         }
 
@@ -62,13 +62,13 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
             let msg = if issue_ids.len() == 1 {
                 format!(
                     "DONE({}): {}",
-                    &issue_ids[0].0[..8],
+                    issue_ids[0].short_id(),
                     data.title(&issue_ids[0])?,
                 )
             } else {
                 let text = issue_ids
                     .iter()
-                    .map(|id| &id.0[..8])
+                    .map(git_issue::Id::short_id)
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("gi: Closed {}", text)
@@ -130,7 +130,7 @@ mod cmd_close {
         {
             let data = DataSource::try_from(tmp).unwrap();
             let args =
-                Parser::try_parse_from(&["git-issue-close", &id.0]).expect("Parsed arguments");
+                Parser::try_parse_from(&["git-issue-close", &id.id()]).expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
 
@@ -155,7 +155,7 @@ mod cmd_close {
 
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-close", &id.0, &id2.0])
+            let args = Parser::try_parse_from(&["git-issue-close", &id.id(), &id2.id()])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }

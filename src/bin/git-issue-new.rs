@@ -62,7 +62,7 @@ fn execute(
                 .lines()
                 .next()
                 .expect("Expected at least one line");
-            let message = format!("gi({}): {}", &id.0[..8], &title);
+            let message = format!("gi({}): {}", &id.short_id(), &title);
             #[cfg(not(feature = "strict-compatibility"))]
             log::info!("Merging issue creation as not fast forward branch");
             data.finish_transaction(&message)?;
@@ -89,7 +89,7 @@ fn main() {
         Ok(repo) => repo,
     };
     match execute(&args, data) {
-        Ok((id, title)) => log::warn!("Added issue {}: {}", &id.0[..8], title),
+        Ok((id, title)) => log::warn!("Added issue {}: {}", &id.short_id(), title),
         Err(e) => std::process::exit(e.code()),
     }
 }

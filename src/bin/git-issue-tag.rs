@@ -36,7 +36,7 @@ fn add_tags<'a>(
     id: &Id,
     tags: &'a [String],
 ) -> Result<Vec<&'a str>, PosixError> {
-    let short_id = &id.0[..8];
+    let short_id = &id.short_id();
     let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
@@ -59,7 +59,7 @@ fn remove_tags<'a>(
     id: &Id,
     tags: &'a [String],
 ) -> Result<Vec<&'a str>, PosixError> {
-    let short_id = &id.0[..8];
+    let short_id = &id.short_id();
     let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
@@ -99,12 +99,17 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
                 let message = if args.remove {
                     format!(
                         "gi({}): Remove {}: {}",
-                        &id.0[..8],
+                        &id.short_id(),
                         word,
                         applied.join(", ")
                     )
                 } else {
-                    format!("gi({}): Add {}: {}", &id.0[..8], word, applied.join(", "))
+                    format!(
+                        "gi({}): Add {}: {}",
+                        &id.short_id(),
+                        word,
+                        applied.join(", ")
+                    )
                 };
 
                 log::info!("Committing transaction");
@@ -156,8 +161,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args =
-                Parser::try_parse_from(&["git-issue-tag", &id.0, "foo"]).expect("Parsed arguments");
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "foo"])
+                .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();
@@ -178,8 +183,8 @@ mod cmd_tag {
         let id = prepare(&tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args =
-                Parser::try_parse_from(&["git-issue-tag", &id.0, "foo"]).expect("Parsed arguments");
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "foo"])
+                .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
         let data = DataSource::try_from(tmp).unwrap();
@@ -200,7 +205,7 @@ mod cmd_tag {
         let id = prepare(&tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.0, "-r", "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
@@ -218,7 +223,7 @@ mod cmd_tag {
         let id = prepare(&tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.0, "-r", "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }

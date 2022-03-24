@@ -33,20 +33,36 @@ pub struct Transaction {
 
 /// Issue id
 #[derive(Clone, PartialEq)]
-pub struct Id(pub String);
+pub struct Id(String);
 
 #[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for Id {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.id().fmt(f)
     }
 }
 
 impl Id {
     #[must_use]
     fn path(&self, path: &Path) -> PathBuf {
-        path.join("issues").join(&self.0[..2]).join(&self.0[2..])
+        path.join("issues")
+            .join(&self.id()[..2])
+            .join(&self.id()[2..])
+    }
+
+    /// Returns full id
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Returns id shortened to 8 chars
+    #[inline]
+    #[must_use]
+    pub fn short_id(&self) -> &str {
+        &self.id()[0..8]
     }
 }
 
@@ -269,7 +285,7 @@ impl DataSource {
                 let ids: Vec<Id> = list_dirs(&path)
                     .iter()
                     .map(Id::from)
-                    .filter(|id| id.0.starts_with(needle))
+                    .filter(|id| id.id().starts_with(needle))
                     .collect();
                 match ids.len() {
                     0 => Err(FindError::NotFound(needle.to_owned())),
@@ -374,7 +390,7 @@ impl DataSource {
         };
         let description = CommitProperty::Description {
             action: ChangeAction::New,
-            id: id.0.clone(),
+            id: id.id().to_owned(),
             description: text.to_owned(),
         };
         #[cfg(feature = "strict-compatibility")]
@@ -396,7 +412,7 @@ impl DataSource {
     pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), WriteError> {
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
-            id: id.0.clone(),
+            id: id.id().to_owned(),
             description: text.to_owned(),
         };
         self.write(id, &property).map_err(Into::into)
@@ -583,7 +599,7 @@ impl DataSource {
                 {
                     format!(
                         "gi({}): Add tag {}\n\ngi tag add {}",
-                        &target_id.0[..8],
+                        &target_id.short_id(),
                         tag,
                         tag
                     )
@@ -602,7 +618,7 @@ impl DataSource {
                 {
                     format!(
                         "gi({}): Remove tag {}\n\ngi tag add {}",
-                        &target_id.0[..8],
+                        &target_id.short_id(),
                         tag,
                         tag
                     )
@@ -621,7 +637,7 @@ impl DataSource {
                 {
                     format!(
                         "gi({}): Add milestone {}\n\ngi milestone add {}",
-                        &target_id.0[..8],
+                        &target_id.short_id(),
                         milestone,
                         milestone
                     )
@@ -640,7 +656,7 @@ impl DataSource {
                 {
                     format!(
                         "gi({}): Remove milestone {}\n\ngi milestone remove {}",
-                        &target_id.0[..8],
+                        &target_id.short_id(),
                         milestone,
                         milestone
                     )
@@ -895,7 +911,7 @@ mod test_find_issue {
         let issue = data
             .find_issue("2d9deaf1b8b146d7e3c4c92133532b314da3e350")
             .expect("Found issue");
-        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+        assert_eq!(issue.id(), "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }
 
     #[test]
@@ -910,7 +926,7 @@ mod test_find_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let issue_id = data.create_issue(&"Foo Bar", vec![], None).unwrap();
-        let needle = issue_id.0.chars().next().unwrap().to_string();
+        let needle = issue_id.id().chars().next().unwrap().to_string();
         let issue = data.find_issue(&needle).expect("Found issue");
         assert_eq!(issue_id, issue);
     }
@@ -919,7 +935,7 @@ mod test_find_issue {
     fn by_two_chars() {
         let data = DataSource::try_new(&None, &None).unwrap();
         let issue = data.find_issue("2d").expect("Found issue");
-        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+        assert_eq!(issue.id(), "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }
 
     #[test]
@@ -942,7 +958,7 @@ mod test_find_issue {
     fn short_id() {
         let data = DataSource::try_new(&None, &None).unwrap();
         let issue = data.find_issue("2d9deaf").expect("Found issue");
-        assert_eq!(issue.0, "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
+        assert_eq!(issue.id(), "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }
 }
 
@@ -987,7 +1003,7 @@ mod create_issue {
         let result = data.create_issue(&desc, vec![], None);
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.0).unwrap();
+        data.find_issue(&issue_id.id()).unwrap();
         let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
         assert_eq!(actual_desc, desc);
 
@@ -1006,7 +1022,7 @@ mod create_issue {
         let result = data.create_issue(&desc, vec![], Some("High Goal".to_string()));
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.0).unwrap();
+        data.find_issue(&issue_id.id()).unwrap();
 
         let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
         assert_eq!(actual_desc, desc);
@@ -1026,7 +1042,7 @@ mod create_issue {
         let result = data.create_issue(&desc, vec!["foo".to_string()], None);
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.0).unwrap();
+        data.find_issue(&issue_id.id()).unwrap();
 
         let actual_desc = data.read(&issue_id, &crate::Property::Description).unwrap();
         assert_eq!(actual_desc, desc);
@@ -1050,7 +1066,7 @@ mod create_issue {
         );
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.0).unwrap();
+        data.find_issue(&issue_id.id()).unwrap();
         let issue_dir = issue_id.path(&data.issues_dir);
         {
             let actual = std::fs::read_to_string(issue_dir.join("description")).unwrap();
