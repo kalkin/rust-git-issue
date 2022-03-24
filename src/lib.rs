@@ -35,7 +35,9 @@ pub struct Transaction {
 
 /// Issue id
 #[derive(Clone, PartialEq)]
-pub struct Id(String);
+pub struct Id {
+    id: String,
+}
 
 #[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for Id {
@@ -57,7 +59,7 @@ impl Id {
     #[inline]
     #[must_use]
     pub fn id(&self) -> &str {
-        &self.0
+        &self.id
     }
 
     /// Returns id shortened to 8 chars
@@ -75,7 +77,9 @@ impl From<&PathBuf> for Id {
         let prefix = parent.file_name().expect("File name").to_str().expect("");
         let file_name = path.file_name().expect("File name").to_str().expect("");
 
-        Self(format!("{}{}", prefix, file_name))
+        Self {
+            id: format!("{}{}", prefix, file_name),
+        }
     }
 }
 
@@ -193,7 +197,7 @@ impl DataSource {
         let message = format!("gi: Add issue\n\n{}", mark_text);
         self.repo.commit_extended(&message, true, true)?;
         let git_head = self.repo.head();
-        let id: Id = Id(git_head);
+        let id: Id = Id { id: git_head };
         log::debug!("{} {:?}", mark_text, id);
 
         self.new_description(&id, description)?;
@@ -214,7 +218,7 @@ impl DataSource {
     #[must_use]
     pub fn creation_date(&self, id: &Id) -> DateTime<FixedOffset> {
         let mut cmd = self.repo.git();
-        cmd.args(&["show", "--no-patch", "--format=%aI", &id.0]);
+        cmd.args(&["show", "--no-patch", "--format=%aI", id.id()]);
         let out = cmd.output().expect("Failed to execute git-stash(1)");
 
         let output = String::from_utf8_lossy(&out.stdout);
@@ -295,7 +299,9 @@ impl DataSource {
                         .join(&needle[..2])
                         .join(&needle[2..]);
                     if path.exists() {
-                        return Ok(Id(needle.to_owned()));
+                        return Ok(Id {
+                            id: needle.to_owned(),
+                        });
                     }
                 }
                 let path = self.issues_dir.join("issues").join(&needle[..2]);
