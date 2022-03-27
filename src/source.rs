@@ -336,7 +336,7 @@ impl DataSource {
     ///
     /// Will throw error on failure to read from file
     #[inline]
-    fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
+    pub(crate) fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
         let path = id.path(&self.issues_dir).join(prop.filename());
         Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
     }
