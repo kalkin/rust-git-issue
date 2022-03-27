@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 /// Issue id
 #[derive(Clone, PartialEq)]
 pub struct Id {
-    id: String,
+    pub(crate) id: String,
 }
 
 #[cfg(not(tarpaulin_include))]
