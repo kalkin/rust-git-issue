@@ -10,6 +10,7 @@ use crate::errors::{
     WritePropertyError,
 };
 use crate::id::Id;
+use crate::Issue;
 
 /// Transaction struct
 #[derive(Debug)]
@@ -110,7 +111,7 @@ pub struct DataSource {
 /// Vector of Strings containing tags
 pub type Tags = Vec<String>;
 
-impl DataSource {
+impl<'src> DataSource {
     /// Create new `DataSource` instance
     #[must_use]
     #[inline]
@@ -119,6 +120,43 @@ impl DataSource {
             repo,
             issues_dir,
             transaction: None,
+        }
+    }
+
+    /// Return an iterator over all issues
+    #[inline]
+    pub fn all(&'src self) -> impl Iterator<Item = std::io::Result<Issue<'src>>> {
+        self.all_ids().into_iter().map(|v| match v {
+            Ok(id) => {
+                let i: Issue<'src> = Issue::new(self, id);
+                Ok(i)
+            }
+            Err(e) => Err(e),
+        })
+    }
+
+    /// Return an iterator over all issue ids
+    #[inline]
+    fn all_ids(&self) -> impl Iterator<Item = std::io::Result<Id>> {
+        let path = self.issues_dir.join("issues");
+
+        let prefix_dirs = path.read_dir().expect("Directory").filter(dir_filter);
+        prefix_dirs.flat_map(Self::list_issue_dirs)
+    }
+
+    fn list_issue_dirs(
+        dir_entry_result: std::io::Result<std::fs::DirEntry>,
+    ) -> Box<dyn Iterator<Item = std::io::Result<Id>>> {
+        match dir_entry_result {
+            Ok(dir_entry) => match dir_entry.path().read_dir() {
+                Ok(ls) => Box::new(ls.filter(dir_filter).map(
+                    |result_dir_entry| -> std::io::Result<Id> {
+                        result_dir_entry.map(|p| p.path()).map(|p| Id::from(&p))
+                    },
+                )),
+                Err(e) => Box::new(vec![Err(e)].into_iter()),
+            },
+            Err(e) => Box::new(vec![Err(e)].into_iter()),
         }
     }
 
