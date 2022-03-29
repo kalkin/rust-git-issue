@@ -109,16 +109,28 @@ impl FormatString {
         for ph in &self.0 {
             let text = match ph {
                 PlaceHolders::CreationDate => {
-                    issue.cache_cdate().expect("cache cdate");
-                    issue.cdate().to_string()
+                    if let Err(e) = issue.cache_cdate() {
+                        log::error!("creation date for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.cdate().to_string()
+                    }
                 }
                 PlaceHolders::DueDate => {
-                    issue.cache_ddate().expect("cached duedate");
-                    issue.ddate().map(|v| v.to_string()).unwrap_or_default()
+                    if let Err(e) = issue.cache_ddate() {
+                        log::error!("due date for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.ddate().map(|v| v.to_string()).unwrap_or_default()
+                    }
                 }
                 PlaceHolders::Description => {
-                    issue.cache_desc().expect("cached description");
-                    issue.title()
+                    if let Err(e) = issue.cache_desc() {
+                        log::error!("desc for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.title()
+                    }
                 }
                 PlaceHolders::Id => issue.id().id().to_owned(),
                 PlaceHolders::ShortId => issue.id().short_id().to_owned(),
