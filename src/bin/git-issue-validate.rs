@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
-use std::fs;
 use std::path::Path;
+use std::{fs, process::Command};
 
 use clap::Parser;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
 
-use git_issue::DataSource;
+use git_issue::{DataSource, Id};
 
 #[derive(Parser)]
 #[clap(
@@ -25,8 +25,10 @@ struct Args {
     verbose: Verbosity<WarnLevel>,
 }
 
-fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> {
+fn validate_issue(id: &Id, path: &Path, fix: bool) -> Result<bool, PosixError> {
+    log::info!("Validating issue: {}", id.short_id());
     let mut result = true;
+
     for entry in fs::read_dir(path)? {
         let dir_entry = entry?;
         if !dir_entry.file_type()?.is_dir() {
@@ -34,7 +36,11 @@ fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> 
             let text = fs::read_to_string(&cur_path)?;
             if !text.ends_with('\n') {
                 let url = cur_path.to_string_lossy();
-                let name = format!("{}/{}", &id[..8], dir_entry.file_name().to_string_lossy());
+                let name = format!(
+                    "{}/{}",
+                    id.short_id(),
+                    dir_entry.file_name().to_string_lossy()
+                );
                 let link = terminal_link::Link::new(&name, &url);
                 if fix {
                     log::warn!("{}:Fixing NL at EOF", link);
@@ -44,6 +50,59 @@ fn validate_issue(id: &str, path: &Path, fix: bool) -> Result<bool, PosixError> 
                     result = false;
                 }
             }
+        }
+    }
+
+    let out = Command::new("git")
+        .args(&["rev-list", "--quiet", "-1", id.id(), "--"])
+        .output()?;
+    if !out.status.success() {
+        let expected = {
+            let out_child = Command::new("git")
+                .args(&["rev-list", "--reverse", "-1", "HEAD", "--"])
+                .arg(path.join("description"))
+                .output()?;
+            let child_commit = String::from_utf8_lossy(&out_child.stdout);
+            let out_parent = Command::new("git")
+                .args(&[
+                    "rev-list",
+                    "-1",
+                    &format!("{}^1", child_commit.trim()),
+                    "--",
+                ])
+                .output()?;
+            let output = String::from_utf8_lossy(&out_parent.stdout);
+            Id::new(output.trim().to_owned())
+        };
+
+        if fix {
+            log::warn!(
+                "Fixing issue id!\n\tGot: {}\n\tExpected {}",
+                id.short_id(),
+                expected.short_id(),
+            );
+            let parent_dir = path
+                .parent()
+                .expect("prefix dir")
+                .parent()
+                .expect("issues dir")
+                .parent()
+                .expect("issues root dir");
+            let src_dir = id.path(parent_dir);
+            let dst_dir = expected.path(parent_dir);
+            fs::create_dir_all(dst_dir.parent().expect("prefix dir"))?;
+            log::warn!("Moving to {:?}", dst_dir);
+            let _status = Command::new("git")
+                .arg("mv")
+                .args(&[src_dir, dst_dir])
+                .status()?;
+        } else {
+            log::warn!(
+                "Invalid issue id!\n\tGot: {}\n\tExpected {}",
+                id.short_id(),
+                expected.short_id(),
+            );
+            result = false;
         }
     }
     Ok(result)
@@ -58,12 +117,9 @@ fn validate(data: &DataSource, fix: bool) -> Result<bool, PosixError> {
             for entry in fs::read_dir(prefix_dir_entry.path())? {
                 let dir_entry = entry?;
                 if prefix_dir_entry.file_type()?.is_dir() {
-                    let id = format!(
-                        "{}{}",
-                        prefix_dir_entry.file_name().to_string_lossy(),
-                        dir_entry.file_name().to_string_lossy()
-                    );
-                    if !validate_issue(&id, &dir_entry.path(), fix)? {
+                    let path = dir_entry.path();
+                    let id = Id::from(dir_entry);
+                    if !validate_issue(&id, &path, fix)? {
                         result = false;
                     }
                 }

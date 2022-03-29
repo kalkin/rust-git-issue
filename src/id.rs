@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs::DirEntry,
+    path::{Path, PathBuf},
+};
 
 /// Issue id
 #[derive(Clone, PartialEq)]
@@ -15,8 +18,17 @@ impl std::fmt::Debug for Id {
 }
 
 impl Id {
+    /// Create new instance
+    #[inline]
     #[must_use]
-    pub(crate) fn path(&self, path: &Path) -> PathBuf {
+    pub const fn new(id: String) -> Self {
+        Self { id }
+    }
+
+    /// Return path to issue directory
+    #[inline]
+    #[must_use]
+    pub fn path(&self, path: &Path) -> PathBuf {
         path.join("issues")
             .join(&self.id()[..2])
             .join(&self.id()[2..])
@@ -47,5 +59,13 @@ impl From<&PathBuf> for Id {
         Self {
             id: format!("{}{}", prefix, file_name),
         }
+    }
+}
+
+impl From<DirEntry> for Id {
+    #[inline]
+    fn from(entry: DirEntry) -> Self {
+        let path_buf = entry.path();
+        Self::from(&path_buf)
     }
 }
