@@ -1,5 +1,5 @@
 use chrono::{DateTime, FixedOffset};
-use git_wrapper::PosixError;
+use git_wrapper::{PosixError, EINVAL};
 
 use crate::id::Id;
 use crate::source::{DataSource, Property};
@@ -135,15 +135,23 @@ impl FormatString {
                 PlaceHolders::Id => issue.id().id().to_owned(),
                 PlaceHolders::ShortId => issue.id().short_id().to_owned(),
                 PlaceHolders::Milestone => {
-                    issue.cache_milestone().expect("cache milestone");
-                    issue
-                        .milestone()
-                        .as_ref()
-                        .map_or_else(String::default, ToString::to_string)
+                    if let Err(e) = issue.cache_milestone() {
+                        log::error!("milestone for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue
+                            .milestone()
+                            .as_ref()
+                            .map_or_else(String::default, ToString::to_string)
+                    }
                 }
                 PlaceHolders::Tags => {
-                    issue.cache_tags().expect("cached tags");
-                    issue.tags().join(" ")
+                    if let Err(e) = issue.cache_tags() {
+                        log::error!("tags for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.tags().join(" ")
+                    }
                 }
                 PlaceHolders::Text(t) => t.to_string(),
             };
@@ -158,6 +166,8 @@ impl FormatString {
 #[derive(thiserror::Error, Debug)]
 pub enum CacheError {
     #[error(transparent)]
+    ParseError(#[from] chrono::ParseError),
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
@@ -166,6 +176,7 @@ impl From<CacheError> for PosixError {
     fn from(e: CacheError) -> Self {
         match e {
             CacheError::Io(err) => Self::from(err),
+            CacheError::ParseError(err) => Self::new(EINVAL, format!("{}", err)),
         }
     }
 }
@@ -226,8 +237,7 @@ impl<'src> Issue<'src> {
 
             let output = String::from_utf8_lossy(&out.stdout);
             let date_text = output.trim();
-            self.inner_cdate =
-                Some(DateTime::parse_from_rfc3339(date_text).expect("Valid DateTime"));
+            self.inner_cdate = Some(DateTime::parse_from_rfc3339(date_text)?);
         }
         Ok(self)
     }
@@ -242,7 +252,7 @@ impl<'src> Issue<'src> {
         if self.inner_ddate.is_none() {
             self.inner_ddate = Some(
                 if let Ok(date_text) = self.src.read(self.id(), &Property::DueDate) {
-                    Some(DateTime::parse_from_rfc3339(&date_text).expect("Valid DateTime"))
+                    Some(DateTime::parse_from_rfc3339(&date_text)?)
                 } else {
                     None
                 },
