@@ -635,7 +635,7 @@ impl<'src> DataSource {
                 #[cfg(not(feature = "strict-compatibility"))]
                 {
                     format!(
-                        "gi({}): Remove tag {}\n\ngi tag add {}",
+                        "gi({}): Remove tag {}\n\ngi tag remove {}",
                         &target_id.short_id(),
                         tag,
                         tag
