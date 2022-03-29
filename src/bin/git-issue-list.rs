@@ -245,10 +245,18 @@ pub(crate) fn execute<'src>(args: &mut Args, data: &'src DataSource) {
             .into_iter()
             .map(|mut i| -> Result<Issue<'_>, CacheError> {
                 match sort {
-                    SortKey::CreationDate => i.cache_cdate()?,
-                    SortKey::Description => i.cache_desc()?,
-                    SortKey::Milestone => i.cache_milestone()?,
-                    SortKey::DueDate => i.cache_ddate()?,
+                    SortKey::CreationDate => {
+                        i.cache_cdate()?;
+                    }
+                    SortKey::Description => {
+                        i.cache_desc()?;
+                    }
+                    SortKey::Milestone => {
+                        i.cache_milestone()?;
+                    }
+                    SortKey::DueDate => {
+                        i.cache_ddate()?;
+                    }
                 }
                 Ok(i)
             })

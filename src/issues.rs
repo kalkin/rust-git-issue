@@ -189,7 +189,7 @@ impl<'src> Issue<'src> {
     ///
     /// Error during caching
     #[inline]
-    pub fn cache_cdate(&mut self) -> Result<(), CacheError> {
+    pub fn cache_cdate(&mut self) -> Result<&mut Self, CacheError> {
         if self.inner_cdate.is_none() {
             let mut cmd = self.src.repo.git();
             cmd.args(&["show", "--no-patch", "--format=%aI", self.id().id()]);
@@ -200,7 +200,7 @@ impl<'src> Issue<'src> {
             self.inner_cdate =
                 Some(DateTime::parse_from_rfc3339(date_text).expect("Valid DateTime"));
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Cache the due date data
@@ -209,7 +209,7 @@ impl<'src> Issue<'src> {
     ///
     /// Error during caching
     #[inline]
-    pub fn cache_ddate(&mut self) -> Result<(), CacheError> {
+    pub fn cache_ddate(&mut self) -> Result<&mut Self, CacheError> {
         if self.inner_ddate.is_none() {
             self.inner_ddate = Some(
                 if let Ok(date_text) = self.src.read(self.id(), &Property::DueDate) {
@@ -219,7 +219,7 @@ impl<'src> Issue<'src> {
                 },
             );
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Cache the description data
@@ -228,12 +228,12 @@ impl<'src> Issue<'src> {
     ///
     /// Error during caching
     #[inline]
-    pub fn cache_desc(&mut self) -> Result<(), CacheError> {
+    pub fn cache_desc(&mut self) -> Result<&mut Self, CacheError> {
         if self.inner_desc.is_none() {
             let desc = self.src.read(self.id(), &Property::Description)?;
             self.inner_desc = Some(desc);
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Cache the milestone data
@@ -242,12 +242,12 @@ impl<'src> Issue<'src> {
     ///
     /// Error during caching
     #[inline]
-    pub fn cache_milestone(&mut self) -> Result<(), CacheError> {
+    pub fn cache_milestone(&mut self) -> Result<&mut Self, CacheError> {
         if self.inner_milestone.is_none() {
             let milestone = self.src.read(self.id(), &Property::Milestone).ok();
             self.inner_milestone = Some(milestone);
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Cache the tags data
@@ -256,7 +256,7 @@ impl<'src> Issue<'src> {
     ///
     /// Error during caching
     #[inline]
-    pub fn cache_tags(&mut self) -> Result<(), CacheError> {
+    pub fn cache_tags(&mut self) -> Result<&mut Self, CacheError> {
         if self.inner_tags.is_none() {
             let tags = self.src.read(self.id(), &Property::Tags).map(|v| {
                 v.trim()
@@ -266,7 +266,7 @@ impl<'src> Issue<'src> {
             })?;
             self.inner_tags = Some(tags);
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Return the issue creation date
