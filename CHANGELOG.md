@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2022-03-29
+
+### Added
+
+- List all milestones with `gi milestone`
+- Implement `gi list` command
+- Add support for due date
+- Add support for creation date
+
+### Changed
+
+- Issue::cache_* functions return &mut Self
+- `gi milestone` Use subcommands instead of switches
+- Make internal `Id` structure crate public
+
 ## [0.0.6] - 2022-03-06
 
 ### Added
