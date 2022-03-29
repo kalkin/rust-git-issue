@@ -1,4 +1,5 @@
 use chrono::{DateTime, FixedOffset};
+use git_wrapper::PosixError;
 
 use crate::id::Id;
 use crate::source::{DataSource, Property};
@@ -148,6 +149,15 @@ pub enum CacheError {
     Io(#[from] std::io::Error),
 }
 
+impl From<CacheError> for PosixError {
+    #[inline]
+    fn from(e: CacheError) -> Self {
+        match e {
+            CacheError::Io(err) => Self::from(err),
+        }
+    }
+}
+
 /// Represents an issue
 #[derive(Debug)]
 pub struct Issue<'src> {
@@ -181,6 +191,13 @@ impl<'src> Issue<'src> {
     #[must_use]
     pub const fn id(&self) -> &Id {
         &self.id
+    }
+
+    /// Return `true` if issue is closed
+    #[inline]
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.tags().contains(&"closed".to_owned())
     }
 
     /// Cache the creation date data
