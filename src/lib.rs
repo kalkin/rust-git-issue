@@ -12,8 +12,9 @@ mod issues;
 mod source;
 pub use crate::caching::CacheError;
 pub use crate::errors::*;
+pub use crate::id::CommentId;
 pub use crate::id::Id;
-pub use crate::issues::{FormatString, Issue};
+pub use crate::issues::{Comment, FormatString, Issue};
 pub use crate::source::{DataSource, WriteResult};
 
 /// `$EDITOR` was quit with error

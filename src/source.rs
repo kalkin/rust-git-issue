@@ -9,7 +9,9 @@ use crate::errors::{
     FindError, FinishError, InitError, RollbackError, TransactionError, WriteError,
     WritePropertyError,
 };
+use crate::id::CommentId;
 use crate::id::Id;
+use crate::issues::Comment;
 use crate::Issue;
 
 /// Transaction struct
@@ -40,6 +42,7 @@ impl From<Vec<Self>> for WriteResult {
 
 #[derive(Debug)]
 pub enum Property {
+    Comment(String),
     Description,
     DueDate,
     Tags,
@@ -49,14 +52,14 @@ pub enum Property {
 impl Property {
     #[must_use]
     #[inline]
-    pub fn filename(&self) -> String {
+    fn path_buf(&self, issue_dir: &Path) -> PathBuf {
         match self {
-            Self::DueDate => "duedate",
-            Self::Description => "description",
-            Self::Tags => "tags",
-            Self::Milestone => "milestone",
+            Property::Comment(id) => issue_dir.join("comments").join(id),
+            Property::Description => issue_dir.join("description"),
+            Property::DueDate => issue_dir.join("duedate"),
+            Property::Tags => issue_dir.join("tags"),
+            Property::Milestone => issue_dir.join("milestone"),
         }
-        .to_owned()
     }
 }
 enum ChangeAction {
@@ -230,6 +233,69 @@ impl<'src> DataSource {
         })
     }
 
+    /// Return all comment ids
+    #[inline]
+    #[must_use]
+    fn comment_ids(&self, id: &Id) -> Vec<std::io::Result<CommentId>> {
+        let comments_path = id.path(self.issues_dir.as_path()).join("comments");
+        if let Ok(dir) = comments_path.read_dir() {
+            dir.filter(file_filter)
+                .map(|d| Ok(CommentId::from(d?.path())))
+                .collect()
+        } else {
+            vec![]
+        }
+    }
+
+    /// Return comments for issue
+    #[inline]
+    #[must_use]
+    pub fn comments(&self, id: &Id) -> Vec<std::io::Result<Comment>> {
+        let mut result: Vec<_> = self
+            .comment_ids(id)
+            .into_iter()
+            .map(|r| match r {
+                Ok(cid) => {
+                    let out = self
+                        .repo
+                        .git()
+                        .args(&["log", "-1", "--reverse", "--format=%aI\t%aN\t%h", "--"])
+                        .arg(id.path(&self.issues_dir).join("comments").join(cid.id()))
+                        .output()?;
+                    let output = String::from_utf8_lossy(&out.stdout);
+                    let split: Vec<_> = output.trim().splitn(3, '\t').collect();
+                    let body = self.read(id, &Property::Comment(cid.id().to_owned()))?;
+                    let cdate =
+                        OffsetDateTime::parse(split[0], &Rfc3339).expect("Valid RFC-3339 date");
+                    let author = split[1];
+                    Ok(Comment::new(cid, author.to_owned(), cdate, body))
+                }
+                Err(e) => Err(e),
+            })
+            .collect();
+
+        result.sort_unstable_by(|a, b| {
+            if a.is_err() || b.is_err() {
+                return std::cmp::Ordering::Equal;
+            }
+            let a_val = a.as_ref().expect("already checked");
+            let b_val = b.as_ref().expect("already checked");
+            a_val.cmp(b_val)
+        });
+        result
+    }
+
+    /// Find issue by id
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no issue matching id found or more than one issue are found.
+    #[inline]
+    pub fn find(&self, needle: &str) -> Result<Issue<'_>, FindError> {
+        let id = self.find_issue(needle)?;
+        Ok(Issue::new(self, id))
+    }
+
     /// # Errors
     ///
     /// Returns an error if no issue matching id found or more than one issue are found.
@@ -374,8 +440,8 @@ impl<'src> DataSource {
     ///
     /// Will throw error on failure to read from file
     #[inline]
-    pub(crate) fn read(&self, id: &Id, prop: &Property) -> Result<String, std::io::Error> {
-        let path = id.path(&self.issues_dir).join(prop.filename());
+    pub(crate) fn read(&self, id: &Id, prop: &Property) -> std::io::Result<String> {
+        let path = prop.path_buf(&id.path(&self.issues_dir));
         Ok(std::fs::read_to_string(path)?.trim_end().to_owned())
     }
 
@@ -768,6 +834,13 @@ fn dir_filter(read_dir_result: &Result<std::fs::DirEntry, std::io::Error>) -> bo
     read_dir_result
         .as_ref()
         .map(|dir_entry| dir_entry.metadata().map(|d| d.is_dir()).unwrap_or(false))
+        .unwrap_or(false)
+}
+
+fn file_filter(read_dir_result: &std::io::Result<std::fs::DirEntry>) -> bool {
+    read_dir_result
+        .as_ref()
+        .map(|dir_entry| dir_entry.metadata().map(|d| d.is_file()).unwrap_or(false))
         .unwrap_or(false)
 }
 

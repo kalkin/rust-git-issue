@@ -2,14 +2,87 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use crate::caching::{Cache, CacheError};
-use crate::id::Id;
+use crate::id::{CommentId, Id};
 use crate::source::{DataSource, Property};
 
 /// Vector of Strings containing tags
 pub type Tags = Vec<String>;
 
+/// A Comment on an issue
+#[derive(Debug, Eq)]
+pub struct Comment {
+    id: CommentId,
+    author: String,
+    cdate: OffsetDateTime,
+    body: String,
+}
+
+impl PartialEq for Comment {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl PartialOrd for Comment {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Comment {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cdate.cmp(&other.cdate)
+    }
+}
+
+impl Comment {
+    /// Create new instance
+    #[inline]
+    #[must_use]
+    pub const fn new(id: CommentId, author: String, cdate: OffsetDateTime, body: String) -> Self {
+        Self {
+            id,
+            author,
+            cdate,
+            body,
+        }
+    }
+
+    /// Return comment id as &str
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> &str {
+        self.id.id()
+    }
+
+    /// Return body text
+    #[inline]
+    #[must_use]
+    pub fn body(&self) -> &str {
+        &self.body[..]
+    }
+
+    /// Get a reference to the comment's author.
+    #[must_use]
+    #[inline]
+    pub fn author(&self) -> &str {
+        self.author.as_ref()
+    }
+
+    /// Get the comment's cdate.
+    #[inline]
+    #[must_use]
+    pub const fn cdate(&self) -> OffsetDateTime {
+        self.cdate
+    }
+}
+
 pub type Cdate = OffsetDateTime;
 pub type Ddate = OffsetDateTime;
+
 #[derive(Debug)]
 enum PlaceHolders {
     CreationDate,
@@ -166,6 +239,7 @@ impl FormatString {
 pub struct Issue<'src> {
     id: Id,
     inner_cdate: Cache<Cdate>,
+    inner_comments: Cache<Vec<Comment>>,
     inner_ddate: Cache<Option<Ddate>>,
     inner_desc: Cache<String>,
     inner_milestone: Cache<Option<String>>,
@@ -181,6 +255,7 @@ impl<'src> Issue<'src> {
         Issue {
             id,
             inner_cdate: None,
+            inner_comments: None,
             inner_ddate: None,
             inner_desc: None,
             inner_milestone: None,
@@ -221,6 +296,31 @@ impl<'src> Issue<'src> {
                 Some(OffsetDateTime::parse(date_text, &Rfc3339).expect("Valid RFC-3339 date"));
         }
         Ok(self)
+    }
+
+    /// Cache the creation date data
+    ///
+    /// # Errors
+    ///
+    /// Error during caching
+    #[inline]
+    pub fn cache_comments(&mut self) -> Vec<Result<(), CacheError>> {
+        if self.inner_comments.is_none() {
+            let (succesfull, failures): (Vec<_>, Vec<_>) = self
+                .src
+                .comments(&self.id)
+                .into_iter()
+                .partition(Result::is_ok);
+            let comments = succesfull.into_iter().map(Result::unwrap).collect();
+            self.inner_comments = Some(comments);
+            failures
+                .into_iter()
+                .map(Result::unwrap_err)
+                .map(|e| Err(CacheError::from(e)))
+                .collect()
+        } else {
+            vec![Ok(())]
+        }
     }
 
     /// Cache the due date data
@@ -294,6 +394,13 @@ impl<'src> Issue<'src> {
     #[must_use]
     pub fn cdate(&self) -> &'_ Cdate {
         self.inner_cdate.as_ref().expect("Cached creation date")
+    }
+
+    /// Return issue comments
+    #[inline]
+    #[must_use]
+    pub fn comments(&self) -> &'_ Vec<Comment> {
+        self.inner_comments.as_ref().expect("Cached comments")
     }
 
     /// Return the issue due date

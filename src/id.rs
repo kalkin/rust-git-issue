@@ -69,3 +69,44 @@ impl From<DirEntry> for Id {
         Self::from(&path_buf)
     }
 }
+
+/// Comment id
+#[derive(Debug, Eq, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+pub struct CommentId {
+    id: String,
+}
+
+impl From<PathBuf> for CommentId {
+    #[inline]
+    #[must_use]
+    fn from(path: PathBuf) -> Self {
+        let file_name = &path.file_name().expect("File name").to_string_lossy();
+        Self {
+            id: file_name.to_string(),
+        }
+    }
+}
+impl From<String> for CommentId {
+    #[inline]
+    #[must_use]
+    fn from(id: String) -> Self {
+        Self { id }
+    }
+}
+
+impl CommentId {
+    /// Return the id as string
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id[..]
+    }
+
+    /// Return the short id as string
+    #[inline]
+    #[must_use]
+    pub fn short_id(&self) -> &str {
+        &self.id[..8]
+    }
+}
