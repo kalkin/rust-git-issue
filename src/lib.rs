@@ -5,13 +5,15 @@ use std::path::Path;
 use git_wrapper::{CommitError, Repository};
 use posix_errors::PosixError;
 
+mod caching;
 mod errors;
 mod id;
 mod issues;
 mod source;
+pub use crate::caching::CacheError;
 pub use crate::errors::*;
 pub use crate::id::Id;
-pub use crate::issues::{CacheError, FormatString, Issue};
+pub use crate::issues::{FormatString, Issue};
 pub use crate::source::{DataSource, WriteResult};
 
 /// `$EDITOR` was quit with error
