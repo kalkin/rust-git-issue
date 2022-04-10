@@ -193,7 +193,7 @@ mod test_find_issue {
     fn by_one_char() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
-        let issue_id = data.create_issue(&"Foo Bar", vec![], None).unwrap();
+        let issue_id = data.create_issue("Foo Bar", vec![], None).unwrap();
         let needle = issue_id.id().chars().next().unwrap().to_string();
         let issue = data.find_issue(&needle).expect("Found issue");
         assert_eq!(issue_id, issue);
@@ -217,9 +217,9 @@ mod test_find_issue {
     fn not_found() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
-        assert!(data.find_issue(&"1").is_err());
-        assert!(data.find_issue(&"12").is_err());
-        assert!(data.find_issue(&"123423eaf").is_err());
+        assert!(data.find_issue("1").is_err());
+        assert!(data.find_issue("12").is_err());
+        assert!(data.find_issue("123423eaf").is_err());
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod create_repo {
         );
         let result = crate::create(tmp, false);
         let msg = format!("{:?}", result);
-        assert!(!result.is_ok(), "{}", msg);
+        assert!(result.is_err(), "{}", msg);
     }
 
     #[test]
@@ -268,10 +268,10 @@ mod create_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
-        let result = data.create_issue(&desc, vec![], None);
+        let result = data.create_issue(desc, vec![], None);
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.id()).unwrap();
+        data.find_issue(issue_id.id()).unwrap();
         let actual_desc = data
             .read(&issue_id, &crate::source::Property::Description)
             .unwrap();
@@ -289,10 +289,10 @@ mod create_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
-        let result = data.create_issue(&desc, vec![], Some("High Goal".to_string()));
+        let result = data.create_issue(desc, vec![], Some("High Goal".to_string()));
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.id()).unwrap();
+        data.find_issue(issue_id.id()).unwrap();
 
         let actual_desc = data
             .read(&issue_id, &crate::source::Property::Description)
@@ -311,10 +311,10 @@ mod create_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
-        let result = data.create_issue(&desc, vec!["foo".to_string()], None);
+        let result = data.create_issue(desc, vec!["foo".to_string()], None);
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.id()).unwrap();
+        data.find_issue(issue_id.id()).unwrap();
 
         let actual_desc = data
             .read(&issue_id, &crate::source::Property::Description)
@@ -334,13 +334,13 @@ mod create_issue {
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
         let result = data.create_issue(
-            &desc,
+            desc,
             vec!["foo".to_string()],
             Some("World domination!".to_owned()),
         );
         assert!(result.is_ok());
         let issue_id = result.unwrap();
-        data.find_issue(&issue_id.id()).unwrap();
+        data.find_issue(issue_id.id()).unwrap();
         let issue_dir = issue_id.path(&data.issues_dir);
         {
             let actual = std::fs::read_to_string(issue_dir.join("description")).unwrap();
@@ -371,7 +371,7 @@ mod tags {
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
-        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        let issue_id = data.create_issue(desc, vec![], None).unwrap();
         {
             let actual = data.add_tag(&issue_id, "foo").expect("Added tag foo");
             assert_eq!(actual, WriteResult::Applied, "Changed data");
@@ -388,7 +388,7 @@ mod tags {
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
-        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        let issue_id = data.create_issue(desc, vec![], None).unwrap();
         {
             let actual = data
                 .add_tag(&issue_id, "open")
@@ -408,7 +408,7 @@ mod tags {
 
         let desc = "Foo Bar";
         let issue_id = data
-            .create_issue(&desc, vec!["foo".to_string()], None)
+            .create_issue(desc, vec!["foo".to_string()], None)
             .unwrap();
         {
             let actual = data.remove_tag(&issue_id, "foo").expect("Removed tag foo");
@@ -426,7 +426,7 @@ mod tags {
         let data = crate::test_source(tmp_dir.path());
 
         let desc = "Foo Bar";
-        let issue_id = data.create_issue(&desc, vec![], None).unwrap();
+        let issue_id = data.create_issue(desc, vec![], None).unwrap();
         {
             let actual = data
                 .remove_tag(&issue_id, "foo")

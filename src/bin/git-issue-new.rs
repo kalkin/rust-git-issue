@@ -104,7 +104,7 @@ mod cmd_new {
 
     fn execute_new(args: &crate::Args, tmp: &Path) -> Id {
         let data = DataSource::try_from(tmp).unwrap();
-        let result = crate::execute(&args, data);
+        let result = crate::execute(args, data);
         result.expect("Execution successful").0
     }
 

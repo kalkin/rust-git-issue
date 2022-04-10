@@ -158,10 +158,10 @@ mod cmd_tag {
     fn add_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &[]);
+        let id = prepare(tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
@@ -180,10 +180,10 @@ mod cmd_tag {
     fn add_duplicate_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &["foo".to_string()]);
+        let id = prepare(tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
@@ -202,10 +202,10 @@ mod cmd_tag {
     fn remove_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &["foo".to_string()]);
+        let id = prepare(tmp, &["foo".to_string()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "-r", "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
@@ -220,10 +220,10 @@ mod cmd_tag {
     fn remove_non_existing_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &[]);
+        let id = prepare(tmp, &[]);
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-tag", &id.id(), "-r", "foo"])
+            let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }

@@ -125,12 +125,12 @@ mod cmd_close {
     fn single_issue() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &[]);
+        let id = prepare(tmp, &[]);
 
         {
             let data = DataSource::try_from(tmp).unwrap();
             let args =
-                Parser::try_parse_from(&["git-issue-close", &id.id()]).expect("Parsed arguments");
+                Parser::try_parse_from(&["git-issue-close", id.id()]).expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
 
@@ -145,7 +145,7 @@ mod cmd_close {
     fn multiple_issue() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(&tmp, &[]);
+        let id = prepare(tmp, &[]);
         let id2 = {
             let issues_dir = tmp.join(".issues");
             let data = DataSource::try_from(issues_dir.as_path()).unwrap();
@@ -155,7 +155,7 @@ mod cmd_close {
 
         {
             let data = DataSource::try_from(tmp).unwrap();
-            let args = Parser::try_parse_from(&["git-issue-close", &id.id(), &id2.id()])
+            let args = Parser::try_parse_from(&["git-issue-close", id.id(), id2.id()])
                 .expect("Parsed arguments");
             assert!(crate::execute(&args, data).is_ok());
         }
