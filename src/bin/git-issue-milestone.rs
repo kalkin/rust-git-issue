@@ -12,7 +12,11 @@ use git_issue::{DataSource, Issue, WriteResult};
 #[derive(Subcommand)]
 enum Command {
     /// List milestones
-    List,
+    List {
+        /// List milestones without open issues
+        #[clap(short, long)]
+        all: bool,
+    },
     /// Remove milestone from issue
     Remove {
         /// Issue id
@@ -30,7 +34,7 @@ enum Command {
 
 impl Default for Command {
     fn default() -> Self {
-        Self::List
+        Self::List { all: false }
     }
 }
 
@@ -115,7 +119,7 @@ enum Milestone {
 }
 
 #[allow(clippy::print_stdout)]
-fn list_cmd(data: &DataSource) -> Result<(), PosixError> {
+fn list_cmd(data: &DataSource, all: bool) -> Result<(), PosixError> {
     let mut error = false;
 
     let mut issues: Vec<Issue<'_>> = {
@@ -166,27 +170,32 @@ fn list_cmd(data: &DataSource) -> Result<(), PosixError> {
             })
         };
 
-        let mut all: HashMap<String, (usize, usize)> = HashMap::new();
+        let mut all_milestones: HashMap<String, (usize, usize)> = HashMap::new();
         for milestone in milestones {
             match milestone {
                 Milestone::No { closed: true } => no_milestone_closed += 1,
                 Milestone::No { closed: false } => no_milestone_open += 1,
-                Milestone::Named { name, closed } => match (all.get_mut(&name), closed) {
-                    (None, true) => {
-                        all.insert(name, (0, 1));
+                Milestone::Named { name, closed } => {
+                    match (all_milestones.get_mut(&name), closed) {
+                        (None, true) => {
+                            all_milestones.insert(name, (0, 1));
+                        }
+                        (None, false) => {
+                            all_milestones.insert(name, (1, 0));
+                        }
+                        (Some((_, c)), true) => *c += 1,
+                        (Some((o, _)), false) => *o += 1,
                     }
-                    (None, false) => {
-                        all.insert(name, (1, 0));
-                    }
-                    (Some((_, c)), true) => *c += 1,
-                    (Some((o, _)), false) => *o += 1,
-                },
+                }
             }
         }
-        all.into_iter().collect()
+        all_milestones.into_iter().collect()
     };
 
     results.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+    if !all {
+        results.retain(|(_, (open, _))| *open != 0);
+    }
 
     for (name, (open, closed)) in results {
         println!("{}\t{}/{}", name, open, open + closed);
@@ -220,7 +229,8 @@ fn main() {
     };
 
     if let Err(e) = match args.command {
-        None | Some(Command::List) => list_cmd(&data),
+        None => list_cmd(&data, false),
+        Some(Command::List { all }) => list_cmd(&data, all),
         Some(Command::Remove { issue_id }) => remove_cmd(data, &issue_id),
         Some(Command::Set {
             issue_id,
