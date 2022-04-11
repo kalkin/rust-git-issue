@@ -278,7 +278,7 @@ mod create_issue {
         assert_eq!(actual_desc, desc);
 
         let actual_tags = data.tags(&issue_id);
-        assert_eq!(actual_tags, vec!["open".to_string()]);
+        assert_eq!(actual_tags, vec!["open".to_owned()]);
 
         let actual_milestone = data.milestone(&issue_id);
         assert_eq!(actual_milestone, None);
@@ -289,7 +289,7 @@ mod create_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
-        let result = data.create_issue(desc, vec![], Some("High Goal".to_string()));
+        let result = data.create_issue(desc, vec![], Some("High Goal".to_owned()));
         assert!(result.is_ok());
         let issue_id = result.unwrap();
         data.find_issue(issue_id.id()).unwrap();
@@ -300,10 +300,10 @@ mod create_issue {
         assert_eq!(actual_desc, desc);
 
         let actual_tags = data.tags(&issue_id);
-        assert_eq!(actual_tags, vec!["open".to_string()]);
+        assert_eq!(actual_tags, vec!["open".to_owned()]);
 
         let actual_milestone = data.milestone(&issue_id);
-        assert_eq!(actual_milestone, Some("High Goal".to_string()));
+        assert_eq!(actual_milestone, Some("High Goal".to_owned()));
     }
 
     #[test]
@@ -311,7 +311,7 @@ mod create_issue {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
         let desc = "Foo Bar";
-        let result = data.create_issue(desc, vec!["foo".to_string()], None);
+        let result = data.create_issue(desc, vec!["foo".to_owned()], None);
         assert!(result.is_ok());
         let issue_id = result.unwrap();
         data.find_issue(issue_id.id()).unwrap();
@@ -322,7 +322,7 @@ mod create_issue {
         assert_eq!(actual_desc, desc);
 
         let actual_tags = data.tags(&issue_id);
-        assert_eq!(actual_tags, vec!["foo".to_string(), "open".to_string()]);
+        assert_eq!(actual_tags, vec!["foo".to_owned(), "open".to_owned()]);
 
         let actual_milestone = data.milestone(&issue_id);
         assert_eq!(actual_milestone, None);
@@ -335,7 +335,7 @@ mod create_issue {
         let desc = "Foo Bar";
         let result = data.create_issue(
             desc,
-            vec!["foo".to_string()],
+            vec!["foo".to_owned()],
             Some("World domination!".to_owned()),
         );
         assert!(result.is_ok());
@@ -378,7 +378,7 @@ mod tags {
         }
 
         let actual_tags = data.tags(&issue_id);
-        let expected_tags = vec!["foo".to_string(), "open".to_string()];
+        let expected_tags = vec!["foo".to_owned(), "open".to_owned()];
         assert_eq!(actual_tags, expected_tags);
     }
 
@@ -397,7 +397,7 @@ mod tags {
         }
 
         let actual_tags = data.tags(&issue_id);
-        let expected_tags = vec!["open".to_string()];
+        let expected_tags = vec!["open".to_owned()];
         assert_eq!(actual_tags, expected_tags);
     }
 
@@ -408,7 +408,7 @@ mod tags {
 
         let desc = "Foo Bar";
         let issue_id = data
-            .create_issue(desc, vec!["foo".to_string()], None)
+            .create_issue(desc, vec!["foo".to_owned()], None)
             .unwrap();
         {
             let actual = data.remove_tag(&issue_id, "foo").expect("Removed tag foo");
@@ -416,7 +416,7 @@ mod tags {
         }
 
         let actual_tags = data.tags(&issue_id);
-        let expected_tags = vec!["open".to_string()];
+        let expected_tags = vec!["open".to_owned()];
         assert_eq!(actual_tags, expected_tags);
     }
 
@@ -435,7 +435,7 @@ mod tags {
         }
 
         let actual_tags = data.tags(&issue_id);
-        let expected_tags = vec!["open".to_string()];
+        let expected_tags = vec!["open".to_owned()];
         assert_eq!(actual_tags, expected_tags);
     }
 }
@@ -462,7 +462,7 @@ mod milestone {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
-        let expected = Some("World Domination".to_string());
+        let expected = Some("World Domination".to_owned());
         let issue_id = data
             .create_issue("Foo Bar", vec![], expected.clone())
             .expect("Created an issue");
@@ -512,7 +512,7 @@ mod milestone {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
 
-        let expected = Some("World Domination".to_string());
+        let expected = Some("World Domination".to_owned());
         let issue_id = data
             .create_issue("Foo Bar", vec![], expected.clone())
             .unwrap();

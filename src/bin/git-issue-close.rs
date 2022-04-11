@@ -137,7 +137,7 @@ mod cmd_close {
         let data = DataSource::try_from(tmp).unwrap();
         {
             let tags = data.tags(&id);
-            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+            assert_eq!(tags, ["closed".to_owned()], "Only tag closed");
         }
     }
 
@@ -163,12 +163,12 @@ mod cmd_close {
         let data = DataSource::try_from(tmp).unwrap();
         {
             let tags = data.tags(&id);
-            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+            assert_eq!(tags, ["closed".to_owned()], "Only tag closed");
         }
 
         {
             let tags = data.tags(&id2);
-            assert_eq!(tags, ["closed".to_string()], "Only tag closed");
+            assert_eq!(tags, ["closed".to_owned()], "Only tag closed");
         }
     }
 

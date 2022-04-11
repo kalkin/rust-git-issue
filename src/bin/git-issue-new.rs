@@ -128,7 +128,7 @@ mod cmd_new {
         }
         {
             let actual = data.tags(&id);
-            let expected = vec!["open".to_string()];
+            let expected = vec!["open".to_owned()];
             assert_eq!(actual, expected);
         }
         {
@@ -165,7 +165,7 @@ mod cmd_new {
         }
         {
             let actual = data.tags(&id);
-            let expected = vec!["bar".to_string(), "foo".to_string(), "open".to_string()];
+            let expected = vec!["bar".to_owned(), "foo".to_owned(), "open".to_owned()];
             assert_eq!(actual, expected);
         }
         {
@@ -194,12 +194,12 @@ mod cmd_new {
         }
         {
             let actual = data.tags(&id);
-            let expected = vec!["open".to_string()];
+            let expected = vec!["open".to_owned()];
             assert_eq!(actual, expected);
         }
         {
             let actual = data.milestone(&id).unwrap();
-            let expected = milestone.to_string();
+            let expected = milestone.to_owned();
             assert_eq!(actual, expected);
         }
     }

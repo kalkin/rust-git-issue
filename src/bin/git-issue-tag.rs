@@ -170,7 +170,7 @@ mod cmd_tag {
             let tags = data.tags(&id);
             assert_eq!(
                 tags,
-                ["foo".to_string(), "open".to_string()],
+                ["foo".to_owned(), "open".to_owned()],
                 "Tags foo and open"
             );
         }
@@ -180,7 +180,7 @@ mod cmd_tag {
     fn add_duplicate_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(tmp, &["foo".to_string()]);
+        let id = prepare(tmp, &["foo".to_owned()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "foo"])
@@ -192,7 +192,7 @@ mod cmd_tag {
             let tags = data.tags(&id);
             assert_eq!(
                 tags,
-                ["foo".to_string(), "open".to_string()],
+                ["foo".to_owned(), "open".to_owned()],
                 "Still only tags foo and open"
             );
         }
@@ -202,7 +202,7 @@ mod cmd_tag {
     fn remove_tag() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
-        let id = prepare(tmp, &["foo".to_string()]);
+        let id = prepare(tmp, &["foo".to_owned()]);
         {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "-r", "foo"])
@@ -212,7 +212,7 @@ mod cmd_tag {
         let data = DataSource::try_from(tmp).unwrap();
         {
             let tags = data.tags(&id);
-            assert_eq!(tags, ["open".to_string()], "Only tag open");
+            assert_eq!(tags, ["open".to_owned()], "Only tag open");
         }
     }
 
@@ -230,7 +230,7 @@ mod cmd_tag {
         let data = DataSource::try_from(tmp).unwrap();
         {
             let tags = data.tags(&id);
-            assert_eq!(tags, ["open".to_string()], "Only tag open");
+            assert_eq!(tags, ["open".to_owned()], "Only tag open");
         }
     }
 }
