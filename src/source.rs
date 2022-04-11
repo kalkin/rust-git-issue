@@ -706,6 +706,7 @@ impl<'src> DataSource {
     /// # Errors
     ///
     /// Will throw error on failure to commit
+    #[allow(unused_variables)]
     #[inline]
     pub fn finish_transaction(&mut self, message: &str) -> Result<(), TransactionError> {
         let transaction = &self.transaction.as_ref().expect("A started transaction");
