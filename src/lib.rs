@@ -232,6 +232,7 @@ mod test_find_issue {
 
 #[cfg(test)]
 mod create_repo {
+    #[allow(clippy::create_dir)]
     #[test]
     fn dir_exists() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
