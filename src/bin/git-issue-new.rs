@@ -218,15 +218,16 @@ mod parse_args {
 
     #[test]
     fn with_summary() {
-        let _args: Args = Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY])
-            .expect("Only summary");
-        let _args: Args =
+        let _args1: Args =
+            Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY])
+                .expect("Only summary");
+        let _args2: Args =
             Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY, "-t", "foo"])
                 .expect("Summary + tag");
-        let _args: Args =
+        let _args3: Args =
             Parser::try_parse_from(&["git-issue-new", "-s", crate::cmd_new::SUMMARY, "-m", "foo"])
                 .expect("Summary + milestone");
-        let _args: Args = Parser::try_parse_from(&[
+        let _args4: Args = Parser::try_parse_from(&[
             "git-issue-new",
             "-s",
             crate::cmd_new::SUMMARY,
@@ -242,10 +243,10 @@ mod parse_args {
     fn with_tags() {
         let result: Result<Args, _> = Parser::try_parse_from(&["git-issue-new", "-t"]);
         assert!(result.is_err(), "-t expects an argument");
-        let _args: Args =
+        let _args1: Args =
             Parser::try_parse_from(&["git-issue-new", "-t", "asd"]).expect("With one tag");
 
-        let _args: Args = Parser::try_parse_from(&[
+        let _args2: Args = Parser::try_parse_from(&[
             "git-issue-new",
             "-s",
             crate::cmd_new::SUMMARY,

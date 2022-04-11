@@ -467,8 +467,10 @@ mod milestone {
             .create_issue("Foo Bar", vec![], expected.clone())
             .expect("Created an issue");
 
-        let actual = data.milestone(&issue_id);
-        assert_eq!(actual, expected);
+        {
+            let actual = data.milestone(&issue_id);
+            assert_eq!(actual, expected);
+        }
 
         {
             let actual = data
@@ -517,8 +519,10 @@ mod milestone {
             .create_issue("Foo Bar", vec![], expected.clone())
             .unwrap();
 
-        let actual = data.milestone(&issue_id);
-        assert_eq!(actual, expected, "Has a milestone");
+        {
+            let actual = data.milestone(&issue_id);
+            assert_eq!(actual, expected, "Has a milestone");
+        }
 
         {
             let actual = data

@@ -38,8 +38,8 @@ mod parse_args {
 
     #[test]
     fn with_existing() {
-        let _args: Args = Parser::try_parse_from(&["git-issue-new", "-e"]).expect("With -e");
-        let _args: Args =
+        let _args1: Args = Parser::try_parse_from(&["git-issue-new", "-e"]).expect("With -e");
+        let _args2: Args =
             Parser::try_parse_from(&["git-issue-new", "--existing"]).expect("With --existing");
     }
 }
