@@ -1,4 +1,5 @@
-use chrono::{DateTime, FixedOffset};
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 use crate::caching::{Cache, CacheError};
 use crate::id::Id;
@@ -7,8 +8,8 @@ use crate::source::{DataSource, Property};
 /// Vector of Strings containing tags
 pub type Tags = Vec<String>;
 
-pub type Cdate = DateTime<FixedOffset>;
-pub type Ddate = DateTime<FixedOffset>;
+pub type Cdate = OffsetDateTime;
+pub type Ddate = OffsetDateTime;
 #[derive(Debug)]
 enum PlaceHolders {
     CreationDate,
@@ -216,7 +217,8 @@ impl<'src> Issue<'src> {
 
             let output = String::from_utf8_lossy(&out.stdout);
             let date_text = output.trim();
-            self.inner_cdate = Some(DateTime::parse_from_rfc3339(date_text)?);
+            self.inner_cdate =
+                Some(OffsetDateTime::parse(date_text, &Rfc3339).expect("Valid RFC-3339 date"));
         }
         Ok(self)
     }
@@ -231,7 +233,7 @@ impl<'src> Issue<'src> {
         if self.inner_ddate.is_none() {
             self.inner_ddate = Some(
                 if let Ok(date_text) = self.src.read(self.id(), &Property::DueDate) {
-                    Some(DateTime::parse_from_rfc3339(&date_text)?)
+                    Some(OffsetDateTime::parse(&date_text, &Rfc3339).expect("Valid RFC-3339 date"))
                 } else {
                     None
                 },

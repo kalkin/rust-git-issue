@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, FixedOffset};
-
 use git_wrapper::x;
 use git_wrapper::Repository;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 use crate::errors::{
     FindError, FinishError, InitError, RollbackError, TransactionError, WriteError,
@@ -193,14 +193,14 @@ impl<'src> DataSource {
     /// Return the creation date
     #[inline]
     #[must_use]
-    pub fn creation_date(&self, id: &Id) -> DateTime<FixedOffset> {
+    pub fn creation_date(&self, id: &Id) -> OffsetDateTime {
         let mut cmd = self.repo.git();
         cmd.args(&["show", "--no-patch", "--format=%aI", id.id()]);
         let out = cmd.output().expect("Failed to execute git-stash(1)");
 
         let output = String::from_utf8_lossy(&out.stdout);
         let date_text = output.trim();
-        DateTime::parse_from_rfc3339(date_text).expect("Valid DateTime")
+        OffsetDateTime::parse(date_text, &Rfc3339).expect("Valid RFC-3339 date")
     }
 
     /// # Errors
@@ -385,10 +385,10 @@ impl<'src> DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn duedate(&self, id: &Id) -> Result<Option<DateTime<FixedOffset>>, std::io::Error> {
+    pub fn duedate(&self, id: &Id) -> Result<Option<OffsetDateTime>, std::io::Error> {
         match self.read(id, &Property::DueDate) {
             Ok(date_text) => Ok(Some(
-                DateTime::parse_from_rfc3339(&date_text).expect("Valid DateTime"),
+                OffsetDateTime::parse(&date_text, &Rfc3339).expect("Valid RFC-3339 date"),
             )),
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => Ok(None),

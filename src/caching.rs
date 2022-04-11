@@ -7,7 +7,7 @@ pub type Cache<T> = Option<T>;
 #[derive(thiserror::Error, Debug)]
 pub enum CacheError {
     #[error(transparent)]
-    ParseError(#[from] chrono::ParseError),
+    ParseError(#[from] time::error::Parse),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
