@@ -129,6 +129,7 @@ fn validate(data: &DataSource, fix: bool) -> Result<bool, PosixError> {
     Ok(result)
 }
 
+#[allow(clippy::exit)]
 fn main() {
     let args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());

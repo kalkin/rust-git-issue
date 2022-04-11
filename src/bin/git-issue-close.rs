@@ -89,6 +89,7 @@ fn execute(args: &Args, mut data: DataSource) -> Result<(), PosixError> {
     }
 }
 
+#[allow(clippy::exit)]
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::parse();

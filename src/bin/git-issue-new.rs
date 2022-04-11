@@ -78,6 +78,7 @@ fn execute(
 }
 
 #[cfg(not(tarpaulin_include))]
+#[allow(clippy::exit)]
 fn main() {
     let args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());

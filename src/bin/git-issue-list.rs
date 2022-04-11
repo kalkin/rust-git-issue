@@ -287,6 +287,7 @@ pub(crate) fn execute<'src>(args: &mut Args, data: &'src DataSource) {
 }
 
 #[cfg(not(tarpaulin_include))]
+#[allow(clippy::exit)]
 fn main() {
     let mut args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());
