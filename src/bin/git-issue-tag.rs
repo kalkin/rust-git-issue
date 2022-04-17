@@ -31,13 +31,13 @@ struct Args {
     verbose: Verbosity<WarnLevel>,
 }
 
-fn add_tags<'a>(
+fn add_tags<'args>(
     data: &DataSource,
     id: &Id,
-    tags: &'a [String],
-) -> Result<Vec<&'a str>, PosixError> {
+    tags: &'args [String],
+) -> Result<Vec<&'args str>, PosixError> {
     let short_id = &id.short_id();
-    let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
+    let mut applied: Vec<&'args str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
         match data.add_tag(id, tag)? {
@@ -54,13 +54,13 @@ fn add_tags<'a>(
     Ok(applied)
 }
 
-fn remove_tags<'a>(
+fn remove_tags<'args>(
     data: &DataSource,
     id: &Id,
-    tags: &'a [String],
-) -> Result<Vec<&'a str>, PosixError> {
+    tags: &'args [String],
+) -> Result<Vec<&'args str>, PosixError> {
     let short_id = &id.short_id();
-    let mut applied: Vec<&'a str> = Vec::with_capacity(tags.len());
+    let mut applied: Vec<&'args str> = Vec::with_capacity(tags.len());
 
     for tag in tags {
         match data.remove_tag(id, tag)? {
