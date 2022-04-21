@@ -451,7 +451,7 @@ impl<'src> DataSource {
     ///
     /// Will throw error on failure to do IO
     #[inline]
-    pub fn duedate(&self, id: &Id) -> Result<Option<OffsetDateTime>, std::io::Error> {
+    pub fn duedate(&self, id: &Id) -> std::io::Result<Option<OffsetDateTime>> {
         match self.read(id, &Property::DueDate) {
             Ok(date_text) => Ok(Some(
                 OffsetDateTime::parse(&date_text, &Rfc3339).expect("Valid RFC-3339 date"),
@@ -582,7 +582,7 @@ impl<'src> DataSource {
     ///
     /// Will throw error on failure to read from description file
     #[inline]
-    pub fn title(&self, id: &Id) -> Result<String, std::io::Error> {
+    pub fn title(&self, id: &Id) -> std::io::Result<String> {
         let description = self.read(id, &Property::Description)?;
         Ok(description.lines().next().unwrap_or("").to_owned())
     }
@@ -830,7 +830,7 @@ impl TryFrom<&Path> for DataSource {
     }
 }
 
-fn dir_filter(read_dir_result: &Result<std::fs::DirEntry, std::io::Error>) -> bool {
+fn dir_filter(read_dir_result: &std::io::Result<std::fs::DirEntry>) -> bool {
     read_dir_result
         .as_ref()
         .map(|dir_entry| dir_entry.metadata().map(|d| d.is_dir()).unwrap_or(false))
