@@ -100,7 +100,7 @@ impl CommentId {
     #[inline]
     #[must_use]
     pub fn id(&self) -> &str {
-        &self.id[..]
+        &*self.id
     }
 
     /// Return the short id as string

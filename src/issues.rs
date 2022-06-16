@@ -62,7 +62,7 @@ impl Comment {
     #[inline]
     #[must_use]
     pub fn body(&self) -> &str {
-        &self.body[..]
+        &*self.body
     }
 
     /// Get a reference to the comment's author.

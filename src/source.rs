@@ -54,11 +54,11 @@ impl Property {
     #[inline]
     fn path_buf(&self, issue_dir: &Path) -> PathBuf {
         match self {
-            Property::Comment(id) => issue_dir.join("comments").join(id),
-            Property::Description => issue_dir.join("description"),
-            Property::DueDate => issue_dir.join("duedate"),
-            Property::Tags => issue_dir.join("tags"),
-            Property::Milestone => issue_dir.join("milestone"),
+            Self::Comment(id) => issue_dir.join("comments").join(id),
+            Self::Description => issue_dir.join("description"),
+            Self::DueDate => issue_dir.join("duedate"),
+            Self::Tags => issue_dir.join("tags"),
+            Self::Milestone => issue_dir.join("milestone"),
         }
     }
 }
