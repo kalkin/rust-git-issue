@@ -173,10 +173,12 @@ pub fn edit(repo: &Repository, text: &str) -> Result<String, PosixError> {
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
 mod test_find_issue {
+    use clap_git_options::GitOptions;
+
     use crate::DataSource;
     #[test]
     fn by_full_id() {
-        let data = DataSource::try_new(&None, &None).unwrap();
+        let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data
             .find_issue("2d9deaf1b8b146d7e3c4c92133532b314da3e350")
             .expect("Found issue");
@@ -185,7 +187,7 @@ mod test_find_issue {
 
     #[test]
     fn by_one_char_multiple() {
-        let data = DataSource::try_new(&None, &None).unwrap();
+        let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("2");
         assert!(issue.is_err());
     }
@@ -202,14 +204,14 @@ mod test_find_issue {
 
     #[test]
     fn by_two_chars() {
-        let data = DataSource::try_new(&None, &None).unwrap();
+        let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("2d").expect("Found issue");
         assert_eq!(issue.id(), "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }
 
     #[test]
     fn multiple_results() {
-        let data = DataSource::try_new(&None, &None).unwrap();
+        let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("1f");
         assert!(issue.is_err());
     }
@@ -225,7 +227,7 @@ mod test_find_issue {
 
     #[test]
     fn short_id() {
-        let data = DataSource::try_new(&None, &None).unwrap();
+        let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("2d9deaf").expect("Found issue");
         assert_eq!(issue.id(), "2d9deaf1b8b146d7e3c4c92133532b314da3e350");
     }

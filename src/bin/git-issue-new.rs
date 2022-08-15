@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_git_options::GitOptions;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
@@ -28,13 +29,11 @@ struct Args {
     #[clap(short, long, long_help = "Edit the issue")]
     edit: bool,
 
-    #[clap(long, long_help = "Directory where the GIT_DIR is")]
-    git_dir: Option<String>,
-    #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
-    work_tree: Option<String>,
-
     #[clap(flatten, next_help_heading = "Output")]
     verbose: Verbosity<WarnLevel>,
+
+    #[clap(flatten)]
+    git: GitOptions,
 }
 
 fn execute(
@@ -82,7 +81,7 @@ fn execute(
 fn main() {
     let args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());
-    let data = match git_issue::DataSource::try_new(&args.git_dir, &args.work_tree) {
+    let data = match git_issue::DataSource::try_new(&args.git) {
         Err(e) => {
             log::error!(" error: {}", e);
             std::process::exit(128);

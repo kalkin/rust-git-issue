@@ -3,6 +3,7 @@ use std::path::Path;
 use std::{fs, process::Command};
 
 use clap::Parser;
+use clap_git_options::GitOptions;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
@@ -23,6 +24,9 @@ struct Args {
 
     #[clap(flatten, next_help_heading = "Output")]
     verbose: Verbosity<WarnLevel>,
+
+    #[clap(flatten)]
+    git: GitOptions,
 }
 
 fn validate_issue(id: &Id, path: &Path, fix: bool) -> Result<bool, PosixError> {
@@ -133,7 +137,7 @@ fn validate(data: &DataSource, fix: bool) -> Result<bool, PosixError> {
 fn main() {
     let args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());
-    let data = match DataSource::try_new(&None, &None) {
+    let data = match git_issue::DataSource::try_new(&args.git) {
         Err(e) => {
             log::error!("{}", e);
             std::process::exit(128);

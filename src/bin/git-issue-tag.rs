@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 use clap::Parser;
+use clap_git_options::GitOptions;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 use posix_errors::PosixError;
@@ -22,10 +23,8 @@ struct Args {
     #[clap(long_help = "One or multiple tags", required = true)]
     tags: Vec<String>,
 
-    #[clap(long, long_help = "Directory where the GIT_DIR is")]
-    git_dir: Option<String>,
-    #[clap(long, long_help = "Directory where the GIT_WORK_TREE is")]
-    work_tree: Option<String>,
+    #[clap(flatten)]
+    git: GitOptions,
 
     #[clap(flatten, next_help_heading = "Output")]
     verbose: Verbosity<WarnLevel>,
@@ -124,7 +123,7 @@ fn main() {
     let args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());
     log::debug!("Log Level is set to {}", log::max_level());
-    let data = match DataSource::try_new(&args.git_dir, &args.work_tree) {
+    let data = match git_issue::DataSource::try_new(&args.git) {
         Err(e) => {
             let err: PosixError = e.into();
             log::error!(" error: {}", err);

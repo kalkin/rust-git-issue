@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use clap_git_options::GitOptions;
 use git_wrapper::x;
 use git_wrapper::Repository;
 use time::format_description::well_known::Rfc3339;
@@ -212,16 +213,13 @@ impl<'src> DataSource {
     /// - Fails to find a non-bare git repository
     /// - Fails to resolve HEAD ref
     #[inline]
-    pub fn try_new(
-        git_dir: &Option<String>,
-        work_tree: &Option<String>,
-    ) -> Result<Self, InitError> {
+    pub fn try_new(options: &GitOptions) -> Result<Self, InitError> {
         let path = std::env::current_dir().expect("Failed to get CWD");
         let issues_dir = Self::find_issues_dir(&path).ok_or(InitError::IssuesRepoNotFound)?;
         let repo = match Repository::from_args(
             Some(&issues_dir.to_string_lossy()),
-            git_dir.as_deref(),
-            work_tree.as_deref(),
+            options.git_dir.as_deref(),
+            options.work_tree.as_deref(),
         ) {
             Ok(repo) => Ok(repo),
             Err(_) => Err(InitError::GitRepoNotFound),

@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 use clap::ArgEnum;
 use clap::Parser;
+use clap_git_options::GitOptions;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use git_issue::CacheError;
 use git_issue::FormatString;
@@ -46,18 +47,8 @@ struct FilterArgs {
     dont_collapse_args_in_usage = true
 )]
 struct Args {
-    #[clap(
-        long,
-        long_help = "Directory where the GIT_DIR is",
-        help_heading = "Git Options"
-    )]
-    git_dir: Option<String>,
-    #[clap(
-        long,
-        long_help = "Directory where the GIT_WORK_TREE is",
-        help_heading = "Git Options"
-    )]
-    work_tree: Option<String>,
+    #[clap(flatten)]
+    git: GitOptions,
 
     #[clap(flatten)]
     filter: FilterArgs,
@@ -292,7 +283,7 @@ fn main() {
     let mut args = Args::parse();
     cli_log::init_with_level(args.verbose.log_level_filter());
     log::debug!("Log Level is set to {}", log::max_level());
-    let data = match DataSource::try_new(&args.git_dir, &args.work_tree) {
+    let data = match git_issue::DataSource::try_new(&args.git) {
         Err(e) => {
             let err: PosixError = e.into();
             log::error!(" error: {}", err);
