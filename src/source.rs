@@ -23,7 +23,7 @@ pub struct Transaction {
 }
 
 /// Returned by functions when data change is requested
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum WriteResult {
     /// The requested data change was applied
     Applied,

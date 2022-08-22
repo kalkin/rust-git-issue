@@ -4,7 +4,7 @@ use std::{
 };
 
 /// Issue id
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Id {
     pub(crate) id: String,
 }
