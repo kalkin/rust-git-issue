@@ -40,7 +40,7 @@ version = '^3.2.16'
 [dependencies.simple_logger]
 default-features = false
 features = ['colors', 'stderr']
-version = '^2.2.0'
+version = '^2.3.0'
 
 [dev-dependencies]
 tempfile = '3'
