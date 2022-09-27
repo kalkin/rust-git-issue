@@ -1,3 +1,4 @@
+use getset::Getters;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
@@ -9,11 +10,17 @@ use crate::source::{DataSource, Property};
 pub type Tags = Vec<String>;
 
 /// A Comment on an issue
-#[derive(Debug, Eq)]
+#[derive(Debug, Eq, Getters)]
 pub struct Comment {
     id: CommentId,
+    /// comment author
+    #[getset(get = "pub")]
     author: String,
+    #[getset(get = "pub")]
+    /// comment cdate
     cdate: OffsetDateTime,
+    /// body text
+    #[getset(get = "pub")]
     body: String,
 }
 
@@ -51,32 +58,11 @@ impl Comment {
         }
     }
 
-    /// Return comment id as &str
+    /// Return the id as string
     #[inline]
     #[must_use]
-    pub fn id(&self) -> &str {
+    pub fn id(&self) -> &String {
         self.id.id()
-    }
-
-    /// Return body text
-    #[inline]
-    #[must_use]
-    pub fn body(&self) -> &str {
-        &*self.body
-    }
-
-    /// Get a reference to the comment's author.
-    #[must_use]
-    #[inline]
-    pub fn author(&self) -> &str {
-        self.author.as_ref()
-    }
-
-    /// Get the comment's cdate.
-    #[inline]
-    #[must_use]
-    pub const fn cdate(&self) -> OffsetDateTime {
-        self.cdate
     }
 }
 

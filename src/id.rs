@@ -3,9 +3,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use getset::Getters;
+
 /// Issue id
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Getters, PartialEq, Eq)]
 pub struct Id {
+    /// The id itself
+    #[getset(get = "pub")]
     pub(crate) id: String,
 }
 
@@ -32,13 +36,6 @@ impl Id {
         path.join("issues")
             .join(&self.id()[..2])
             .join(&self.id()[2..])
-    }
-
-    /// Returns full id
-    #[inline]
-    #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id
     }
 
     /// Returns id shortened to 8 chars
@@ -71,9 +68,11 @@ impl From<DirEntry> for Id {
 }
 
 /// Comment id
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Getters, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CommentId {
+    /// full id
+    #[getset(get = "pub")]
     id: String,
 }
 
@@ -96,13 +95,6 @@ impl From<String> for CommentId {
 }
 
 impl CommentId {
-    /// Return the id as string
-    #[inline]
-    #[must_use]
-    pub fn id(&self) -> &str {
-        &*self.id
-    }
-
     /// Return the short id as string
     #[inline]
     #[must_use]
