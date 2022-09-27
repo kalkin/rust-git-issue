@@ -163,7 +163,7 @@ mod cmd_tag {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "foo"])
                 .expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
         let data = DataSource::try_from(tmp).unwrap();
         {
@@ -185,7 +185,7 @@ mod cmd_tag {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "foo"])
                 .expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
         let data = DataSource::try_from(tmp).unwrap();
         {
@@ -207,7 +207,7 @@ mod cmd_tag {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
         let data = DataSource::try_from(tmp).unwrap();
         {
@@ -225,7 +225,7 @@ mod cmd_tag {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-tag", id.id(), "-r", "foo"])
                 .expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
         let data = DataSource::try_from(tmp).unwrap();
         {

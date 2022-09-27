@@ -189,7 +189,7 @@ mod test_find_issue {
     fn by_one_char_multiple() {
         let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("2");
-        assert!(issue.is_err());
+        issue.unwrap_err();
     }
 
     #[test]
@@ -213,16 +213,16 @@ mod test_find_issue {
     fn multiple_results() {
         let data = DataSource::try_new(&GitOptions::default()).unwrap();
         let issue = data.find_issue("1f");
-        assert!(issue.is_err());
+        issue.unwrap_err();
     }
 
     #[test]
     fn not_found() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let data = crate::test_source(tmp_dir.path());
-        assert!(data.find_issue("1").is_err());
-        assert!(data.find_issue("12").is_err());
-        assert!(data.find_issue("123423eaf").is_err());
+        data.find_issue("1").unwrap_err();
+        data.find_issue("12").unwrap_err();
+        data.find_issue("123423eaf").unwrap_err();
     }
 
     #[test]

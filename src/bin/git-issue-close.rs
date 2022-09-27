@@ -131,7 +131,7 @@ mod cmd_close {
             let data = DataSource::try_from(tmp).unwrap();
             let args =
                 Parser::try_parse_from(&["git-issue-close", id.id()]).expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
 
         let data = DataSource::try_from(tmp).unwrap();
@@ -157,7 +157,7 @@ mod cmd_close {
             let data = DataSource::try_from(tmp).unwrap();
             let args = Parser::try_parse_from(&["git-issue-close", id.id(), id2.id()])
                 .expect("Parsed arguments");
-            assert!(crate::execute(&args, data).is_ok());
+            crate::execute(&args, data).unwrap();
         }
 
         let data = DataSource::try_from(tmp).unwrap();
@@ -181,7 +181,7 @@ mod cmd_close {
         let data = DataSource::try_from(tmp).unwrap();
         let args =
             Parser::try_parse_from(&["git-issue-close", "123eaf"]).expect("Parsed arguments");
-        assert!(crate::execute(&args, data).is_err());
+        crate::execute(&args, data).unwrap_err();
     }
 }
 
