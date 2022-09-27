@@ -262,7 +262,7 @@ impl<'src> DataSource {
                         .output()?;
                     let output = String::from_utf8_lossy(&out.stdout);
                     let split: Vec<_> = output.trim().splitn(3, '\t').collect();
-                    let body = self.read(id, &Property::Comment(cid.id().to_owned()))?;
+                    let body = self.read(id, &Property::Comment(cid.id().clone()))?;
                     let cdate =
                         OffsetDateTime::parse(split[0], &Rfc3339).expect("Valid RFC-3339 date");
                     let author = split[1];
@@ -472,7 +472,7 @@ impl<'src> DataSource {
         };
         let description = CommitProperty::Description {
             action: ChangeAction::New,
-            id: id.id().to_owned(),
+            id: id.id().clone(),
             description: text.to_owned(),
         };
         #[cfg(feature = "strict-compatibility")]
@@ -494,7 +494,7 @@ impl<'src> DataSource {
     pub fn edit_description(&self, id: &Id, text: &str) -> Result<(), WriteError> {
         let property = CommitProperty::Description {
             action: ChangeAction::Edit,
-            id: id.id().to_owned(),
+            id: id.id().clone(),
             description: text.to_owned(),
         };
         self.write(id, &property).map_err(Into::into)

@@ -205,7 +205,7 @@ impl FormatString {
                         issue.title()
                     }
                 }
-                PlaceHolders::Id => issue.id().id().to_owned(),
+                PlaceHolders::Id => issue.id().id().clone(),
                 PlaceHolders::ShortId => issue.id().short_id().to_owned(),
                 PlaceHolders::Milestone => {
                     if let Err(e) = issue.cache_milestone() {
