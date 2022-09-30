@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
-use clap::ArgEnum;
 use clap::Parser;
+use clap::ValueEnum;
 use clap_git_options::GitOptions;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use git_issue::CacheError;
@@ -61,7 +61,7 @@ struct Args {
         short = 'l',
         help_heading = "OUTPUT",
         default_value = "simple",
-        parse(try_from_str=TryFrom::try_from)
+        value_parser=FormatString::try_new,
     )]
     format_string: FormatString,
 
@@ -70,11 +70,11 @@ struct Args {
     reverse: bool,
 
     /// Order issues by specified fields
-    #[clap(arg_enum, short, long, help_heading = "ORDER OPTIONS")]
+    #[clap(value_enum, short, long, help_heading = "ORDER OPTIONS")]
     order: Option<SortKey>,
 }
 
-#[derive(Copy, Clone, ArgEnum)]
+#[derive(Copy, Clone, ValueEnum)]
 enum SortKey {
     #[clap(name = "%c")]
     CreationDate,

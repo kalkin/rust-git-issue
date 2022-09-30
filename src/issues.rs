@@ -69,7 +69,7 @@ impl Comment {
 pub type Cdate = OffsetDateTime;
 pub type Ddate = OffsetDateTime;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum PlaceHolders {
     CreationDate,
     DueDate,
@@ -82,14 +82,75 @@ enum PlaceHolders {
 }
 
 /// Format string pattern
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FormatString(Vec<PlaceHolders>);
 
-impl TryFrom<&'_ str> for FormatString {
-    type Error = String;
-
+impl FormatString {
+    /// Return issue formatted as string
     #[inline]
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    pub fn format(&self, issue: &mut Issue<'_>) -> String {
+        let mut result = String::new();
+        for ph in &self.0 {
+            let text = match ph {
+                PlaceHolders::CreationDate => {
+                    if let Err(e) = issue.cache_cdate() {
+                        log::error!("creation date for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.cdate().to_string()
+                    }
+                }
+                PlaceHolders::DueDate => {
+                    if let Err(e) = issue.cache_ddate() {
+                        log::error!("due date for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.ddate().map(|v| v.to_string()).unwrap_or_default()
+                    }
+                }
+                PlaceHolders::Description => {
+                    if let Err(e) = issue.cache_desc() {
+                        log::error!("desc for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.title()
+                    }
+                }
+                PlaceHolders::Id => issue.id().id().clone(),
+                PlaceHolders::ShortId => issue.id().short_id().to_owned(),
+                PlaceHolders::Milestone => {
+                    if let Err(e) = issue.cache_milestone() {
+                        log::error!("milestone for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue
+                            .milestone()
+                            .as_ref()
+                            .map_or_else(String::default, ToString::to_string)
+                    }
+                }
+                PlaceHolders::Tags => {
+                    if let Err(e) = issue.cache_tags() {
+                        log::error!("tags for id({}) {}", e, issue.id().short_id());
+                        String::default()
+                    } else {
+                        issue.tags().join(" ")
+                    }
+                }
+                PlaceHolders::Text(t) => t.to_string(),
+            };
+            result.push_str(&text);
+        }
+        result
+    }
+
+    /// Try to create new format string from string
+    ///
+    /// # Errors
+    ///
+    /// Return a string containing the error message
+    #[inline]
+    pub fn try_new(value: &str) -> Result<Self, String> {
         let mut result = vec![];
         let mut cur: String = String::new();
         let format_string = match value {
@@ -157,66 +218,6 @@ impl TryFrom<&'_ str> for FormatString {
             result.push(PlaceHolders::Text(cur));
         }
         Ok(Self(result))
-    }
-}
-
-impl FormatString {
-    /// Return issue formatted as string
-    #[inline]
-    pub fn format(&self, issue: &mut Issue<'_>) -> String {
-        let mut result = String::new();
-        for ph in &self.0 {
-            let text = match ph {
-                PlaceHolders::CreationDate => {
-                    if let Err(e) = issue.cache_cdate() {
-                        log::error!("creation date for id({}) {}", e, issue.id().short_id());
-                        String::default()
-                    } else {
-                        issue.cdate().to_string()
-                    }
-                }
-                PlaceHolders::DueDate => {
-                    if let Err(e) = issue.cache_ddate() {
-                        log::error!("due date for id({}) {}", e, issue.id().short_id());
-                        String::default()
-                    } else {
-                        issue.ddate().map(|v| v.to_string()).unwrap_or_default()
-                    }
-                }
-                PlaceHolders::Description => {
-                    if let Err(e) = issue.cache_desc() {
-                        log::error!("desc for id({}) {}", e, issue.id().short_id());
-                        String::default()
-                    } else {
-                        issue.title()
-                    }
-                }
-                PlaceHolders::Id => issue.id().id().clone(),
-                PlaceHolders::ShortId => issue.id().short_id().to_owned(),
-                PlaceHolders::Milestone => {
-                    if let Err(e) = issue.cache_milestone() {
-                        log::error!("milestone for id({}) {}", e, issue.id().short_id());
-                        String::default()
-                    } else {
-                        issue
-                            .milestone()
-                            .as_ref()
-                            .map_or_else(String::default, ToString::to_string)
-                    }
-                }
-                PlaceHolders::Tags => {
-                    if let Err(e) = issue.cache_tags() {
-                        log::error!("tags for id({}) {}", e, issue.id().short_id());
-                        String::default()
-                    } else {
-                        issue.tags().join(" ")
-                    }
-                }
-                PlaceHolders::Text(t) => t.to_string(),
-            };
-            result.push_str(&text);
-        }
-        result
     }
 }
 
