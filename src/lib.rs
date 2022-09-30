@@ -21,15 +21,20 @@ pub use crate::source::{DataSource, WriteResult};
 pub const E_EDITOR_KILLED: i32 = posix_errors::EINTR; // 4
 
 // Repository errors
+// arithmetic: All the arithmetic is within the positive range of i32.
 /// Repository already exists.
+#[allow(clippy::arithmetic)]
 pub const E_REPO_EXIST: i32 = 128 + posix_errors::EEXIST; // 135
 /// Bare Repository
+#[allow(clippy::arithmetic)]
 pub const E_REPO_BARE: i32 = 128 + posix_errors::EPROTOTYPE; // 169
 
 /// .issues directory missing
+#[allow(clippy::arithmetic)]
 pub const E_ISSUES_DIR_EXIST: i32 = 128 + 16 + posix_errors::EEXIST; // 151
 
 /// Stashing operation failed
+#[allow(clippy::arithmetic)]
 pub const E_STASH_ERROR: i32 = 128 + 16 + 16 + posix_errors::EIO; // 165
 
 /// Vector of Strings containing tags
