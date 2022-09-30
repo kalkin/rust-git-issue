@@ -171,6 +171,9 @@ fn list_cmd(data: &DataSource, all: bool) -> Result<(), PosixError> {
 
         let mut all_milestones: HashMap<String, (usize, usize)> = HashMap::new();
         for milestone in milestones {
+            // arithmetic: given `milestones.len() <= i32::MAX`, no_milestone_open +
+            //             no_milestone_closed cannot overflow
+            #[allow(clippy::arithmetic)]
             match milestone {
                 Milestone::No { closed: true } => no_milestone_closed += 1,
                 Milestone::No { closed: false } => no_milestone_open += 1,
@@ -196,14 +199,18 @@ fn list_cmd(data: &DataSource, all: bool) -> Result<(), PosixError> {
         results.retain(|(_, (open, _))| *open != 0);
     }
 
-    for (name, (open, closed)) in results {
-        println!("{}\t{}/{}", name, open, open + closed);
+    // arithmetic: given `results.len() <= i32::MAX` so open + closed cannot overflow
+    #[allow(clippy::arithmetic)]
+    {
+        for (name, (open, closed)) in results {
+            println!("{}\t{}/{}", name, open, open + closed);
+        }
+        println!(
+            "No Milestone\t{}/{}",
+            no_milestone_open,
+            no_milestone_open + no_milestone_closed
+        );
     }
-    println!(
-        "No Milestone\t{}/{}",
-        no_milestone_open,
-        no_milestone_open + no_milestone_closed
-    );
 
     if error {
         Err(PosixError::new(1, "Errors happened".to_owned()))
