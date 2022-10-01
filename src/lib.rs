@@ -265,6 +265,7 @@ mod create_repo {
 }
 #[cfg(test)]
 fn test_source(tmp: &Path) -> DataSource {
+    git_wrapper::setup_test_author();
     assert!(create(tmp, false).is_ok(), "Create issue repository");
     DataSource::try_from(tmp).unwrap()
 }

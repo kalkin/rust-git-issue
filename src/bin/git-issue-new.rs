@@ -112,6 +112,7 @@ mod cmd_new {
     fn only_message() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
+        git_wrapper::setup_test_author();
         git_issue::create(tmp, false).unwrap();
 
         let id = {
@@ -141,6 +142,7 @@ mod cmd_new {
     fn with_tags() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
+        git_wrapper::setup_test_author();
         git_issue::create(tmp, false).unwrap();
 
         let id = {
@@ -178,6 +180,7 @@ mod cmd_new {
     fn with_milestone() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
+        git_wrapper::setup_test_author();
         git_issue::create(tmp, false).unwrap();
         let milestone = "World Domination!";
 

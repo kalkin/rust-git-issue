@@ -114,6 +114,7 @@ mod cmd_close {
     use std::path::Path;
 
     fn prepare(tmp_dir: &Path, tags: &[String]) -> Id {
+        git_wrapper::setup_test_author();
         git_issue::create(tmp_dir, false).unwrap();
         let issues_dir = tmp_dir.join(".issues");
         let data = DataSource::try_from(issues_dir.as_path()).unwrap();
@@ -176,6 +177,7 @@ mod cmd_close {
     fn non_existing_issue() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let tmp = tmp_dir.path();
+        git_wrapper::setup_test_author();
         git_issue::create(tmp, false).unwrap();
 
         let data = DataSource::try_from(tmp).unwrap();
