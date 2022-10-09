@@ -23,7 +23,7 @@ path = 'src/lib.rs'
 
 [dependencies]
 bkg-cli-log = "0.2.*"
-clap-git-options = { version = "0.1.0", features = ["git-wrapper"] }
+clap-git-options = { version = "^0.2.0", features = [ "git-wrapper" ] }
 clap-verbosity-flag = '2'
 getset = '0.1.*'
 git-wrapper = '0.6.*'
