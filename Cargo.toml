@@ -5,7 +5,7 @@ categories = [ 'command-line-utilities', 'development-tools' ]
 description = 'Distributed issue management system based on Git'
 edition = '2021'
 keywords = ['cli', 'git', 'issues', 'tracking']
-license = 'propritary'
+license = 'AGPL-3.0-or-later'
 repository = 'https://github.com/kalkin/rust-git-issue.git'
 version = '0.0.10'
 
