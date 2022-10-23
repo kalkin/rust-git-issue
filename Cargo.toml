@@ -35,7 +35,7 @@ thiserror = '1'
 
 [dependencies.clap]
 default-features = false
-features = ['cargo', 'derive', 'std']
+features = ['cargo', 'derive', 'std', 'help', 'usage', 'error-context']
 version = '^4.0.15'
 
 [dependencies.simple_logger]
